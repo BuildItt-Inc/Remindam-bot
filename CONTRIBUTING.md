@@ -41,7 +41,7 @@ If you have an idea for a new feature, please open an issue on [GitHub Issues](h
 1. Create a new branch for your work:
 
    ```sh
-   git checkout -b feat/RBD-2145-your-feature-name
+   git checkout -b feat/your-feature-name
    ```
 
 ##### Branch Naming Rules
@@ -71,6 +71,9 @@ Commit messages follow this pattern:
 
 ```
 feat(RBD-1234): add login functionality
+```
+or you use:
+```
 refactor: simplify formData handling
 ```
 
