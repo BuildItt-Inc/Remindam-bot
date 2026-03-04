@@ -50,7 +50,7 @@ If you have an idea for a new feature, please open an issue on [GitHub Issues](h
 * Include a ticket or issue number, e.g., RBD-2145.
 * Add a short description of your update (from the ticket title), all in lowercase.
 
-> Example branch names: `feat/RBD-1234-create-login-page` or `chore/remove-unused-variables`.
+> Example branch names: `chore/remove-unused-variables` or `feat/RBD-1234-create-login-page`.
 
 2. Make your changes, and commit them with descriptive messages:
 
@@ -91,16 +91,11 @@ To maintain code quality and consistency, this project uses pre-commit hooks for
 
 **Setup Instructions:**
 
-1. Install the pre-commit package (if not already installed):
+1. Install all dependencies (including pre-commit) using uv:
 
    ```sh
-   pip install -r requirements.txt
-   ````
-   or
-
-   ```sh
-   uv add pre-commit
-   ````
+   uv sync --all-extras
+   ```
 
 2. Install the hooks defined in the repository:
 
@@ -131,7 +126,7 @@ To maintain code quality and consistency, this project uses pre-commit hooks for
 2. Run tests and ensure all pass:
 
    ```sh
-   poetry run pytest
+   uv run pytest
    ```
 
 3. Submit a pull request from your branch to the upstream repository.
