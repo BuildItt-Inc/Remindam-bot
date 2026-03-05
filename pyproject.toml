@@ -19,15 +19,6 @@ dependencies = [
     "python-dotenv>=1.0.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.24.0",
-    "ruff>=0.8.0",
-    "httpx>=0.27.0",
-    "pre-commit>=4.0.0",
-]
-
 [tool.ruff]
 target-version = "py312"
 line-length = 88
@@ -39,3 +30,12 @@ select = ["E", "F", "I", "N", "W", "UP"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.4",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.27.0",
+    "pre-commit>=4.0.0",
+]
