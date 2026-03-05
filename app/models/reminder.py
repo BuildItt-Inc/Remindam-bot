@@ -1,9 +1,3 @@
-"""
-ReminderLog model.
-
-Tracks every reminder sent and its outcome (taken, missed, snoozed).
-"""
-
 import uuid
 
 from sqlalchemy import DateTime, ForeignKey, String, func

@@ -20,6 +20,15 @@ Ensure you have the following installed on your machine:
 * Redis (running locally on port 6379 or update `.env` accordingly)
 * [uv package manager](https://docs.astral.sh/uv/getting-started/installation/)
 
+  **Linux/macOS:**
+```sh
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+  **Windows:**
+```powershell
+  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
 ### 2. Clone and Setup Environment
 Clone the repository and install all dependencies (including dev tools and pre-commit hooks) using `uv`.
 
@@ -37,21 +46,16 @@ Create a `.env` file in the root directory and copy these variables:
 
 ```env
 # Database configuration
-DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/remindam
+DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/remindam
 
 # Redis configuration
 REDIS_URL=redis://localhost:6379/0
 
 # Security (JWT)
-JWT_SECRET_KEY=change-me-in-production
+JWT_SECRET_KEY=change-me
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
-
-# Twilio Credentials
-TWILIO_ACCOUNT_SID=your_twilio_sid
-TWILIO_AUTH_TOKEN=your_twilio_token
-TWILIO_WHATSAPP_NUMBER=+1234567890
 
 # Subscription configuration
 TRIAL_DAYS=3
@@ -62,6 +66,13 @@ GRACE_DAYS=2
 ### 4. Database Setup & Migrations
 We use Alembic for database migrations. To apply the initial schema to your database:
 
+First, create the local database:
+```sh
+createdb remindam
+```
+> If `createdb` fails, try: `sudo -u postgres psql -c "CREATE DATABASE remindam;"`
+
+Then apply migrations:
 ```sh
 uv run alembic upgrade head
 ```
@@ -100,6 +111,12 @@ uv run pre-commit install
 This will automatically format your code via `Ruff` whenever you run `git commit`. You can also format everything manually with:
 ```sh
 uv run pre-commit run --all-files
+```
+
+If you prefer to run formatting manually without pre-commit:
+```sh
+uv run ruff format .
+uv run ruff check . --fix
 ```
 
 ### Database Migrations

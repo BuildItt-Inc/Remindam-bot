@@ -1,10 +1,3 @@
-"""
-MessageLog model.
-
-Raw audit log of every WhatsApp message (in/out) via Twilio.
-Essential for debugging delivery issues.
-"""
-
 import uuid
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, func
