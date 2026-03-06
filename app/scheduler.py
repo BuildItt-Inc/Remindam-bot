@@ -39,7 +39,16 @@ celery_app.conf.update(
 
 def run_async(coro):
     """Helper to run async code in a sync Celery task."""
-    return asyncio.run(coro)
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    if loop.is_running():
+        # This shouldn't happen in a standard Celery worker, but good to be safe
+        return asyncio.ensure_future(coro, loop=loop)
+    return loop.run_until_complete(coro)
 
 
 @celery_app.task(name="app.scheduler.check_for_due_reminders")
