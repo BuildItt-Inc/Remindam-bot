@@ -1,9 +1,3 @@
-"""
-Payment model.
-
-Individual payment transactions (Paystack/Flutterwave charges).
-"""
-
 import uuid
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func

@@ -1,10 +1,3 @@
-"""
-User and UserProfile models.
-
-users: Non-sensitive identity record.
-user_profiles: PII isolated for NDPR compliance + user settings.
-"""
-
 import uuid
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
@@ -81,7 +74,6 @@ class UserProfile(Base):
         return f"<UserProfile(user_id={self.user_id}, whatsapp={self.whatsapp_number})>"
 
 
-# Avoid circular imports — these are only used for type-checking the relationships
 from app.models.medication import Medication  # noqa: E402
 from app.models.message import MessageLog  # noqa: E402
 from app.models.payment import Payment  # noqa: E402

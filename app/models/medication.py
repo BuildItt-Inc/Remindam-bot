@@ -8,7 +8,7 @@ from app.database import Base
 
 
 class Medication(Base):
-    """A medication registered by the user. Includes inventory tracking."""
+    """A medication registered by the user. Includes refill tracking."""
 
     __tablename__ = "medications"
 
@@ -19,8 +19,13 @@ class Medication(Base):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    dosage: Mapped[str] = mapped_column(String(100), nullable=False)
+    dosage: Mapped[str] = mapped_column(String(100), nullable=True)
     times_per_day: Mapped[int] = mapped_column(Integer, nullable=False)
+    supply_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    next_refill_date: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    refill_reminder_days_before: Mapped[int] = mapped_column(Integer, default=3)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
