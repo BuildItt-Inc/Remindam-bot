@@ -35,6 +35,9 @@ class User(Base):
     medications: Mapped[list["Medication"]] = relationship(back_populates="user")
     reminder_logs: Mapped[list["ReminderLog"]] = relationship(back_populates="user")
     message_logs: Mapped[list["MessageLog"]] = relationship(back_populates="user")
+    adherence_reports: Mapped[list["AdherenceReport"]] = relationship(
+        back_populates="user"
+    )
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, is_active={self.is_active})>"
@@ -55,7 +58,7 @@ class UserProfile(Base):
     )
     first_name: Mapped[str | None] = mapped_column(String(100))
     last_name: Mapped[str | None] = mapped_column(String(100))
-    timezone: Mapped[str] = mapped_column(String(50), default="Africa/Lagos")
+    timezone: Mapped[str] = mapped_column(String(50), default="UTC")
     reminder_window_minutes: Mapped[int] = mapped_column(Integer, default=30)
     notification_preferences: Mapped[str] = mapped_column(
         String(20), default="whatsapp"
@@ -74,6 +77,7 @@ class UserProfile(Base):
         return f"<UserProfile(user_id={self.user_id}, whatsapp={self.whatsapp_number})>"
 
 
+from app.models.adherence_report import AdherenceReport  # noqa: E402
 from app.models.medication import Medication  # noqa: E402
 from app.models.message import MessageLog  # noqa: E402
 from app.models.payment import Payment  # noqa: E402

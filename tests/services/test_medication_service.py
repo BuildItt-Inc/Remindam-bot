@@ -3,6 +3,7 @@ from datetime import time
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.medication import MedicationForm
 from app.schemas.medication import (
     MedicationCreate,
     MedicationScheduleCreate,
@@ -27,7 +28,10 @@ async def test_user(db: AsyncSession):
 def sample_medication_create() -> MedicationCreate:
     return MedicationCreate(
         name="Paracetamol",
+        medication_form=MedicationForm.TABLET,
         dosage="500mg",
+        dosage_amount=2,
+        dosage_unit="mg",
         times_per_day=2,
         schedules=[
             MedicationScheduleCreate(scheduled_time=time(hour=8, minute=0)),
@@ -47,6 +51,8 @@ async def test_create_medication(
 
     assert medication is not None
     assert medication.name == "Paracetamol"
+    assert medication.medication_form == "tablet"
+    assert medication.dosage_amount == 2
     assert len(medication.schedules) == 2
     assert medication.schedules[0].scheduled_time == time(8, 0)
     assert medication.user_id == test_user.id
@@ -64,6 +70,7 @@ async def test_get_user_medications(
     meds = await medication_service.get_user_medications(db, user_id=test_user.id)
     assert len(meds) == 1
     assert meds[0].name == "Paracetamol"
+    assert meds[0].medication_form == "tablet"
 
 
 @pytest.mark.asyncio

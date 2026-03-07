@@ -26,6 +26,9 @@ class Subscription(Base):
     starts_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     auto_renew: Mapped[bool] = mapped_column(Boolean, default=True)
+    trial_ends_at: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

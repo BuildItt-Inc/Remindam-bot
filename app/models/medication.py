@@ -1,10 +1,50 @@
+import enum
 import uuid
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Time, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Time, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+
+class MedicationForm(enum.StrEnum):
+    """Physical form of the medication."""
+
+    TABLET = "tablet"
+    CAPSULE = "capsule"
+    SYRUP = "syrup"
+    CREAM = "cream"
+    OINTMENT = "ointment"
+    INHALER = "inhaler"
+    INJECTION = "injection"
+    DROPS = "drops"
+    SPRAY = "spray"
+    SUPPOSITORY = "suppository"
+    PATCH = "patch"
+
+
+class MedicationFrequency(enum.StrEnum):
+    """How often the medication should be taken."""
+
+    DAILY = "daily"
+    EVERY_OTHER_DAY = "every_other_day"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    AS_NEEDED = "as_needed"
+    CUSTOM = "custom"
+
+
+class DosageUnit(enum.StrEnum):
+    """Unit of measurement for dosage."""
+
+    MG = "mg"
+    ML = "ml"
+    UNITS = "units"
+    PUFFS = "puffs"
+    DROPS = "drops"
+    PIECES = "pieces"
+    APPLICATIONS = "applications"
 
 
 class Medication(Base):
@@ -19,10 +59,21 @@ class Medication(Base):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    dosage: Mapped[str] = mapped_column(String(100), nullable=True)
+    medication_form: Mapped[str] = mapped_column(String(20), nullable=False)
+    dosage: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )  # Legacy free-text field, kept for backward compatibility
+    dosage_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    dosage_unit: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    frequency: Mapped[str] = mapped_column(
+        String(50), default=MedicationFrequency.DAILY, nullable=False
+    )
     times_per_day: Mapped[int] = mapped_column(Integer, nullable=False)
     supply_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     next_refill_date: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    treatment_end_date: Mapped[DateTime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     refill_reminder_days_before: Mapped[int] = mapped_column(Integer, default=3)
@@ -41,7 +92,9 @@ class Medication(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Medication(id={self.id}, name={self.name})>"
+        return (
+            f"<Medication(id={self.id}, name={self.name}, form={self.medication_form})>"
+        )
 
 
 class MedicationSchedule(Base):

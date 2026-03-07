@@ -89,12 +89,12 @@ uv run uvicorn app.main:app --reload
 
 **Tab 2: Start the Celery Worker (Task execution)**
 ```sh
-uv run celery -A app.celery_worker worker --loglevel=info
+uv run celery -A app.scheduler worker --loglevel=info
 ```
 
 **Tab 3: Start Celery Beat (Scheduled tasks)**
 ```sh
-uv run celery -A app.celery_worker beat --loglevel=info
+uv run celery -A app.scheduler beat --loglevel=info
 ```
 
 ---

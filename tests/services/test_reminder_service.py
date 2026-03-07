@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.medication import MedicationForm
 from app.schemas.medication import MedicationCreate, MedicationScheduleCreate
 from app.schemas.reminder import ReminderLogCreate, ReminderLogUpdate
 from app.schemas.user import UserCreate, UserProfileCreate
@@ -23,6 +24,7 @@ async def medication_with_schedule(db: AsyncSession):
 
     med_in = MedicationCreate(
         name="Aspirin",
+        medication_form=MedicationForm.TABLET,
         times_per_day=1,
         schedules=[MedicationScheduleCreate(scheduled_time=datetime.now(UTC).time())],
     )
@@ -84,7 +86,7 @@ async def test_get_due_reminders(db: AsyncSession, medication_with_schedule):
 
     user_due = [r for r in due_reminders if r.user_id == user.id]
     assert len(user_due) == 1
-    assert user_due[0].status == "pending"
+    assert user_due[0].status == "queued"
 
 
 @pytest.mark.asyncio

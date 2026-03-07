@@ -29,6 +29,7 @@ class ReminderService:
         if current_time is None:
             current_time = datetime.now(UTC)
 
+        # Use SKIP LOCKED to safely grab reminders without blocking other workers
         query = (
             select(ReminderLog)
             .options(
@@ -41,9 +42,21 @@ class ReminderService:
                 ReminderLog.status == "pending",
                 ReminderLog.scheduled_for <= current_time,
             )
+            .with_for_update(skip_locked=True)
+            .limit(100)  # Process in batches to avoid locking too many rows
         )
         result = await db.execute(query)
-        return list(result.scalars().all())
+        reminders = list(result.scalars().all())
+
+        # Mark them as "queued" to prevent other producers/consumers from getting them
+        for reminder in reminders:
+            reminder.status = "queued"
+            db.add(reminder)
+
+        if reminders:
+            await db.commit()
+
+        return reminders
 
     async def update_reminder_status(
         self, db: AsyncSession, log_id: UUID, obj_in: ReminderLogUpdate

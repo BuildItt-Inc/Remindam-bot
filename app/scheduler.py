@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import threading
 from uuid import UUID
 
 from celery import Celery
@@ -27,7 +28,6 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
-    # For a project of this size, we can keep the frequency high
     beat_schedule={
         "check-reminders-every-minute": {
             "task": "app.scheduler.check_for_due_reminders",
@@ -37,17 +37,21 @@ celery_app.conf.update(
 )
 
 
+_loop_local = threading.local()
+
+
 def run_async(coro):
-    """Helper to run async code in a sync Celery task."""
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
+    """
+    Helper to run async code in a sync Celery task.
+    Uses a persistent thread-local event loop. This prevents SQLAlchemy asyncpg
+    connection pool cleanup issues that occur when asyncio.run() constantly
+    creates and destroys loops across sequential task executions.
+    """
+    loop = getattr(_loop_local, "loop", None)
+    if loop is None or loop.is_closed():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-
-    if loop.is_running():
-        # This shouldn't happen in a standard Celery worker, but good to be safe
-        return asyncio.ensure_future(coro, loop=loop)
+        _loop_local.loop = loop
     return loop.run_until_complete(coro)
 
 
@@ -69,7 +73,6 @@ def check_for_due_reminders():
 
             logger.info(f"Found {len(due_reminders)} due reminders. Queuing tasks...")
             for reminder in due_reminders:
-                # Trigger individual consumer task for parallel execution
                 send_whatsapp_task.delay(str(reminder.id))
 
     run_async(get_and_queue())
@@ -88,7 +91,6 @@ def send_whatsapp_task(reminder_log_id: str):
 
     async def process_reminder():
         async with async_session() as db:
-            # 1. Fetch reminder with related data (joined in service)
             from datetime import UTC, datetime
 
             from sqlalchemy import select
@@ -98,7 +100,6 @@ def send_whatsapp_task(reminder_log_id: str):
             from app.models.reminder import ReminderLog
             from app.models.user import User
 
-            # Re-fetch to ensure we have fresh session data
             query = (
                 select(ReminderLog)
                 .options(
@@ -112,21 +113,28 @@ def send_whatsapp_task(reminder_log_id: str):
             result = await db.execute(query)
             reminder = result.scalars().first()
 
-            if not reminder or reminder.status != "pending":
-                logger.warning(f"Reminder {reminder_log_id} not found or not pending.")
+            if not reminder or reminder.status != "queued":
+                logger.warning(f"Reminder {reminder_log_id} not found or not queued.")
                 return
 
             user = reminder.user
             med = reminder.schedule.medication
 
-            # 2. Build Message
+            if med.dosage_amount and med.dosage_unit:
+                dosage_info = f"{med.dosage_amount:g} {med.dosage_unit}"
+            elif med.dosage:
+                dosage_info = med.dosage
+            else:
+                dosage_info = ""
+
+            form_label = med.medication_form or ""
+            dosage_part = f" — {dosage_info}" if dosage_info else ""
+
             message_body = (
                 f"Hello {user.profile.first_name}, it's time for your "
-                f"{med.name} ({med.dosage})."
+                f"{med.name} ({form_label}{dosage_part})."
             )
 
-            # 3. Send WhatsApp (Mocked or Real based on .env)
-            # This service method also logs to MessageLog DB if db is provided
             twilio_sid = await whatsapp_service.send_message(
                 to_number=user.profile.whatsapp_number,
                 message=message_body,
@@ -135,7 +143,6 @@ def send_whatsapp_task(reminder_log_id: str):
                 reminder_log_id=reminder.id,
             )
 
-            # 4. Update status
             if twilio_sid:
                 await reminder_service.update_reminder_status(
                     db,
