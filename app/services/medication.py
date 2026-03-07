@@ -17,7 +17,7 @@ class MedicationService:
     ) -> Medication:
         """Create a new medication and its associated schedules for a user."""
         # 0. Enforce Trial & Subscription logic
-        user = await user_service.get_user(db, user_id=user_id)
+        user = await user_service.get_by_id(db, user_id=user_id)
         if not user or not await subscription_service.can_access_medications(db, user):
             raise ValueError(
                 "Your 3-day free trial has expired. "
