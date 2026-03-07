@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     """Application configuration via environment variables."""
 
     DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/remindam"
+    TEST_DATABASE_URL: str | None = None
+    USE_NULL_POOL: bool = False
 
     REDIS_URL: str = "redis://localhost:6379/0"
 
@@ -17,8 +19,11 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_WHATSAPP_NUMBER: str = ""
 
+    PAYSTACK_SECRET_KEY: str = ""
+
     TRIAL_DAYS: int = 3
     GRACE_DAYS: int = 2
+    SUBSCRIPTION_AMOUNT_KOBO: int = 50000  # ₦500
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

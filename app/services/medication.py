@@ -7,6 +7,8 @@ from sqlalchemy.orm import selectinload
 
 from app.models.medication import Medication, MedicationSchedule
 from app.schemas.medication import MedicationCreate, MedicationUpdate
+from app.services.subscription_service import subscription_service
+from app.services.user_service import user_service
 
 
 class MedicationService:
@@ -14,6 +16,14 @@ class MedicationService:
         self, db: AsyncSession, *, user_id: UUID, obj_in: MedicationCreate
     ) -> Medication:
         """Create a new medication and its associated schedules for a user."""
+        # 0. Enforce Trial & Subscription logic
+        user = await user_service.get_by_id(db, user_id=user_id)
+        if not user or not await subscription_service.can_access_medications(db, user):
+            raise ValueError(
+                "Your 3-day free trial has expired. "
+                "Please subscribe for just ₦500/month to add more medications."
+            )
+
         medication_data = obj_in.model_dump(exclude={"schedules"})
         new_medication = Medication(user_id=user_id, **medication_data)
         db.add(new_medication)
@@ -100,6 +110,21 @@ class MedicationService:
                 Medication.is_active.is_(True),
                 Medication.next_refill_date <= cutoff,
             )
+        )
+        result = await db.execute(query)
+        return list(result.scalars().all())
+
+    async def get_expired_medications(
+        self, db: AsyncSession, current_time: datetime | None = None
+    ) -> list[Medication]:
+        """Fetch active medications whose treatment end date has passed."""
+        if current_time is None:
+            current_time = datetime.now(UTC)
+
+        query = select(Medication).where(
+            Medication.is_active.is_(True),
+            Medication.treatment_end_date.isnot(None),
+            Medication.treatment_end_date <= current_time,
         )
         result = await db.execute(query)
         return list(result.scalars().all())

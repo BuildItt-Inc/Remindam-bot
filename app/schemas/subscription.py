@@ -11,6 +11,7 @@ class SubscriptionBase(BaseModel):
     starts_at: datetime | None = None
     expires_at: datetime | None = None
     auto_renew: bool = True
+    trial_ends_at: datetime | None = None
 
 
 class SubscriptionCreate(SubscriptionBase):
@@ -24,6 +25,7 @@ class SubscriptionUpdate(BaseModel):
     starts_at: datetime | None = None
     expires_at: datetime | None = None
     auto_renew: bool | None = None
+    trial_ends_at: datetime | None = None
 
 
 class SubscriptionResponse(SubscriptionBase):

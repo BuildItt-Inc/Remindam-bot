@@ -8,7 +8,7 @@ class UserProfileBase(BaseModel):
     whatsapp_number: str
     first_name: str | None = None
     last_name: str | None = None
-    timezone: str = "Africa/Lagos"
+    timezone: str = "UTC"
     reminder_window_minutes: int = 30
     notification_preferences: str = "whatsapp"
 

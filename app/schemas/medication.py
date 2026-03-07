@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from app.models.medication import DosageUnit, MedicationForm, MedicationFrequency
+
 
 class MedicationScheduleBase(BaseModel):
     scheduled_time: time
@@ -29,10 +31,15 @@ class MedicationScheduleResponse(MedicationScheduleBase):
 
 class MedicationBase(BaseModel):
     name: str
+    medication_form: MedicationForm
     dosage: str | None = None
+    dosage_amount: float | None = None
+    dosage_unit: DosageUnit | None = None
+    frequency: MedicationFrequency = MedicationFrequency.DAILY
     times_per_day: int
     supply_days: int | None = None
     next_refill_date: datetime | None = None
+    treatment_end_date: datetime | None = None
     refill_reminder_days_before: int = 3
 
 
@@ -42,10 +49,15 @@ class MedicationCreate(MedicationBase):
 
 class MedicationUpdate(BaseModel):
     name: str | None = None
+    medication_form: MedicationForm | None = None
     dosage: str | None = None
+    dosage_amount: float | None = None
+    dosage_unit: DosageUnit | None = None
+    frequency: MedicationFrequency | None = None
     times_per_day: int | None = None
     supply_days: int | None = None
     next_refill_date: datetime | None = None
+    treatment_end_date: datetime | None = None
     refill_reminder_days_before: int | None = None
     is_active: bool | None = None
 

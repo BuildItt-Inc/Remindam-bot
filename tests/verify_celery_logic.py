@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from app.database import async_session
+from app.models.medication import MedicationForm
 from app.models.reminder import ReminderLog
 from app.scheduler import check_for_due_reminders, send_whatsapp_task
 from app.schemas.medication import MedicationCreate, MedicationScheduleCreate
@@ -16,16 +17,19 @@ async def verify():
     print("--- Starting Celery Task Verification ---")
 
     async with async_session() as db:
-        # 1. Setup Data
+        import random
+
+        unique_phone = f"+234555{random.randint(100000, 999999)}"
         user_in = UserCreate(
             profile=UserProfileCreate(
-                whatsapp_number="+234555666777", first_name="Celery", last_name="Tester"
+                whatsapp_number=unique_phone, first_name="Celery", last_name="Tester"
             )
         )
         user = await user_service.create(db, user_in=user_in)
 
         med_in = MedicationCreate(
             name="Vitamin C",
+            medication_form=MedicationForm.TABLET,
             times_per_day=1,
             schedules=[
                 MedicationScheduleCreate(
@@ -50,18 +54,16 @@ async def verify():
         print(f"Created pending reminder: {pending_id}")
 
     print("Running check_for_due_reminders logic...")
-
-    check_for_due_reminders()
+    await asyncio.to_thread(check_for_due_reminders)
 
     print(f"Running send_whatsapp_task logic for {pending_id}...")
-    send_whatsapp_task(pending_id)
+    await asyncio.to_thread(send_whatsapp_task, pending_id)
 
     async with async_session() as db:
         from sqlalchemy import select
 
         from app.models.message import MessageLog
 
-        # Check reminder status
         res = await db.execute(
             select(ReminderLog).where(ReminderLog.id == UUID(pending_id))
         )
@@ -69,7 +71,6 @@ async def verify():
         print(f"Final Reminder Status: {log.status}")
         assert log.status == "sent"
 
-        # Check message log
         res = await db.execute(
             select(MessageLog).where(MessageLog.reminder_log_id == UUID(pending_id))
         )
