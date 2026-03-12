@@ -21,8 +21,10 @@ class AdherenceService:
     The report flow:
     1. User requests a report via WhatsApp (e.g., "Send my weekly report")
     2. This service calculates stats from ReminderLog
-    3. Returns a formatted WhatsApp message + a PDF file path
-    4. The WhatsApp service sends the text message and attaches the PDF
+    3. Based on report type:
+       - Weekly: Returns a formatted WhatsApp message (text only).
+       - Monthly: Returns a formatted WhatsApp message + a PDF file path.
+    4. The WhatsApp service sends the response accordingly.
     """
 
     async def generate_report(
@@ -102,7 +104,9 @@ class AdherenceService:
         )
 
         whatsapp_message = format_whatsapp_report(**format_kwargs)
-        pdf_path = generate_pdf_report(**format_kwargs)
+        pdf_path = None
+        if report_type == "monthly":
+            pdf_path = generate_pdf_report(**format_kwargs)
 
         return {
             "report": report,
