@@ -20,10 +20,12 @@ class SubscriptionService:
         trial_end = user.trial_start_date + timedelta(days=settings.TRIAL_DAYS)
         return now <= trial_end
 
-    async def has_active_subscription(self, db: AsyncSession, user_id: UUID) -> bool:
-        """Check if the user has an active, paid subscription."""
+    async def has_active_subscription(self, db: AsyncSession, user_id: UUID, plan: str | None = None) -> bool:
+        """Check if the user has an active, paid subscription, optionally for a specific plan."""
         sub = await self.get_user_subscription(db, user_id)
-        return sub is not None
+        if not sub:
+            return False
+        return sub.plan == plan if plan else True
 
     async def can_add_reminder(self, db: AsyncSession, user: User) -> bool:
         """
@@ -75,7 +77,7 @@ class SubscriptionService:
         self, db: AsyncSession, *, user_id: UUID, obj_in: SubscriptionCreate
     ) -> Subscription:
         """Create a new subscription record. Defaults to ₦500 if not provided."""
-        amount = obj_in.amount_kobo or settings.SUBSCRIPTION_AMOUNT_KOBO
+        amount = obj_in.amount_kobo or settings.SUBSCRIPTION_AMOUNT_STANDARD_KOBO
 
         new_sub = Subscription(
             user_id=user_id,
