@@ -1,16 +1,16 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class UserProfileBase(BaseModel):
-    whatsapp_number: str
-    first_name: str | None = None
-    last_name: str | None = None
-    timezone: str = "UTC"
+    whatsapp_number: str = Field(..., max_length=50)
+    first_name: str | None = Field(None, max_length=100)
+    last_name: str | None = Field(None, max_length=100)
+    timezone: str = Field("Africa/Lagos", max_length=50)
     reminder_window_minutes: int = 30
-    notification_preferences: str = "whatsapp"
+    notification_preferences: str = Field("whatsapp", max_length=20)
 
 
 class UserProfileCreate(UserProfileBase):

@@ -1,12 +1,13 @@
 # WhatsApp Medication Reminder Bot (Remindam)
 
-A reliable, NDPR-compliant WhatsApp bot that helps users remember their medication schedules via scheduled Twilio messages.
+A reliable, NDPR-compliant WhatsApp bot that helps users remember their medication schedules via text-based interactive menus powered by Twilio.
 
 ## Tech Stack
 * **Framework:** FastAPI
 * **Database:** PostgreSQL (Async) + SQLAlchemy + Alembic
 * **Task Queue:** Celery + Celery Beat + Redis
-* **Messaging:** Twilio API
+* **Messaging:** Twilio (WhatsApp)
+* **Payments:** Paystack
 * **Package Manager:** [uv](https://docs.astral.sh/uv/)
 
 ---
@@ -57,13 +58,29 @@ JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
 
+# Twilio (WhatsApp)
+TWILIO_ACCOUNT_SID=your-account-sid
+TWILIO_AUTH_TOKEN=your-auth-token
+TWILIO_WHATSAPP_NUMBER=+14155238886
+
+# Paystack (Payments)
+PAYSTACK_SECRET_KEY=sk_test_xxx
+
 # Subscription configuration
-TRIAL_DAYS=3
+TRIAL_DAYS=2
 GRACE_DAYS=2
 ```
 > **Note:** Update the `DATABASE_URL` username, password, and port to match your local PostgreSQL setup. Make sure the database actually exists! (e.g., `createdb remindam`).
 
-### 4. Database Setup & Migrations
+### 4. Twilio WhatsApp Sandbox Setup
+1. Sign up at [twilio.com](https://www.twilio.com/) and get your **Account SID** and **Auth Token** from the dashboard.
+2. Go to **Messaging → Try it out → Send a WhatsApp message** to activate the sandbox.
+3. Follow the instructions to join the sandbox (send a code from your phone to the sandbox number).
+4. Set your webhook URL in the Twilio sandbox configuration:
+   - **When a message comes in:** `https://<your-ngrok-url>/whatsapp/webhook` (HTTP POST)
+5. Add your credentials to `.env`.
+
+### 5. Database Setup & Migrations
 We use Alembic for database migrations. To apply the initial schema to your database:
 
 First, create the local database:
@@ -77,7 +94,7 @@ Then apply migrations:
 uv run alembic upgrade head
 ```
 
-### 5. Running the Application
+### 6. Running the Application
 
 You'll need three terminal tabs to run the full stack locally:
 
@@ -96,6 +113,12 @@ uv run celery -A app.scheduler worker --loglevel=info
 ```sh
 uv run celery -A app.scheduler beat --loglevel=info
 ```
+
+**Tab 4: Expose via Ngrok (for Twilio webhooks)**
+```sh
+ngrok http 8000
+```
+Copy the HTTPS URL and paste it into your Twilio sandbox webhook settings.
 
 ---
 

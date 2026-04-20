@@ -26,7 +26,7 @@ class MessageLog(Base):
     direction: Mapped[str] = mapped_column(
         String(10), nullable=False, default="outbound"
     )  # inbound, outbound
-    twilio_sid: Mapped[str | None] = mapped_column(String(50), index=True)
+    provider_message_id: Mapped[str | None] = mapped_column(String(50), index=True)
     status: Mapped[str | None] = mapped_column(
         String(20)
     )  # queued, sent, delivered, failed

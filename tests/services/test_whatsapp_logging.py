@@ -18,28 +18,38 @@ async def logging_user(db: AsyncSession):
     return await user_service.create(db, user_in=user_in)
 
 
+from app.services.message_types import TextMsg
+
+
 @pytest.mark.asyncio
 async def test_whatsapp_logging_to_db(db: AsyncSession, logging_user):
     """Test that send_message correctly logs metadata to
     the database when a db session is provided."""
-    sid = await whatsapp_service.send_message(
-        to_number="+2348011122233",
-        message="Test Logging",
-        db=db,
-        user_id=logging_user.id,
-    )
+    # Force mock mode for this test
+    original_mock_mode = whatsapp_service.mock_mode
+    whatsapp_service.mock_mode = True
 
-    assert sid is not None
-    assert sid.startswith("MOCK_")
+    try:
+        sid = await whatsapp_service.send(
+            to_number="+2348011122233",
+            msg=TextMsg("Test Logging"),
+            db=db,
+            user_id=logging_user.id,
+        )
 
-    # Verify log exists in DB
-    query = select(MessageLog).where(MessageLog.user_id == logging_user.id)
-    result = await db.execute(query)
-    log = result.scalars().first()
+        assert sid is not None
+        assert sid.startswith("MOCK_")
 
-    assert log is not None
-    assert log.twilio_sid == sid
-    assert log.status == "sent"
-    assert log.direction == "outbound"
-    # Ensure no content is stored (since 'content' column was removed from model)
-    assert not hasattr(log, "content") or log.content is None
+        # Verify log exists in DB
+        query = select(MessageLog).where(MessageLog.user_id == logging_user.id)
+        result = await db.execute(query)
+        log = result.scalars().first()
+
+        assert log is not None
+        assert log.provider_message_id == sid
+        assert log.status == "sent"
+        assert log.direction == "outbound"
+        # Ensure no content is stored (since 'content' column was removed from model)
+        assert not hasattr(log, "content") or log.content is None
+    finally:
+        whatsapp_service.mock_mode = original_mock_mode

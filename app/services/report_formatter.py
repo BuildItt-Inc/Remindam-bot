@@ -59,24 +59,46 @@ def format_whatsapp_report(
         f"📊 *{report_type.capitalize()} Adherence Report*",
         f"_{period_start.strftime('%b %d')} – {period_end.strftime('%b %d, %Y')}_",
         "",
-        f"Hello *{user_name}*, here's your medication consistency summary:",
+        f"Hello *{user_name}*, here's your reminder consistency summary:",
         "",
         f"*Adherence Score:* {adherence_percentage:.0f}%",
         f"{bar}",
         "",
-        f"✅ Taken: *{taken_count}* / {total_reminders}",
+        f"✅ Completed: *{taken_count}* / {total_reminders}",
         f"❌ Missed: *{missed_count}* / {total_reminders}",
     ]
 
-    # Per-medication breakdown (if available)
+    # Per-item breakdown grouped by type
     if medication_breakdown:
-        lines.extend(["", "📋 *Breakdown by Medication:*"])
+        _ICONS = {
+            "medication": "💊",
+            "exercise": "🏃",
+            "water_intake": "💧",
+        }
+        _LABELS = {
+            "medication": "Medications",
+            "exercise": "Exercise",
+            "water_intake": "Water Intake",
+        }
+        # Group items by type
+        by_type: dict[str, list] = {}
         for med in medication_breakdown:
-            med_bar = _progress_bar(med.get("adherence", 0), length=6)
-            lines.append(
-                f"  • {med['name']} ({med['form']}): "
-                f"{med.get('adherence', 0):.0f}% {med_bar}"
-            )
+            t = med.get("item_type", "medication")
+            by_type.setdefault(t, []).append(med)
+
+        lines.append("")
+        lines.append("📋 *Breakdown:*")
+        for item_type, items in by_type.items():
+            icon = _ICONS.get(item_type, "📌")
+            label = _LABELS.get(item_type, item_type.replace("_", " ").title())
+            lines.append(f"\n{icon} *{label}*")
+            for med in items:
+                med_bar = _progress_bar(med.get("adherence", 0), length=6)
+                form_info = f" ({med['form']})" if med.get("form") else ""
+                lines.append(
+                    f"  • {med['name']}{form_info}: "
+                    f"{med.get('adherence', 0):.0f}% {med_bar}"
+                )
 
     # Footer
     if adherence_percentage >= 90:
@@ -87,10 +109,10 @@ def format_whatsapp_report(
         message = "Good job! A little more consistency and you'll be perfect."
     elif adherence_percentage >= 50:
         emoji = "💪"
-        message = "You're getting there — try setting extra alarms for missed doses."
+        message = "You're getting there — try setting extra alarms for missed items."
     else:
         emoji = "⚠️"
-        message = "Your adherence is low. Missing medication can affect your health."
+        message = "Your adherence is low. Staying consistent is key to your health."
 
     lines.extend(["", f"{emoji} _{message}_"])
 

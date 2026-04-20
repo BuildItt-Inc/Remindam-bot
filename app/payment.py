@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +23,7 @@ def verify_paystack_webhook(payload: bytes, signature: str) -> bool:
         logger.warning("PAYSTACK_SECRET_KEY is not set. Cannot verify webhook.")
         return False
 
-    expected = hmac.new(
+    expected = hmac.HMAC(
         settings.PAYSTACK_SECRET_KEY.encode("utf-8"),
         payload,
         hashlib.sha512,
@@ -61,11 +61,69 @@ async def process_successful_payment(
         await subscription_service.update_subscription(
             db,
             sub_id=updated_payment.subscription_id,
-            obj_in=SubscriptionUpdate(status="active"),
+            obj_in=SubscriptionUpdate(
+                status="active",
+                starts_at=now,
+                expires_at=now + timedelta(days=30),
+            ),
         )
         logger.info(
             f"Activated subscription {updated_payment.subscription_id} "
             f"for payment {reference}."
+        )
+    else:
+        from app.schemas.subscription import SubscriptionCreate
+
+        plan_name = "standard"
+        if updated_payment.amount >= settings.SUBSCRIPTION_AMOUNT_PREMIUM_KOBO:
+            plan_name = "premium"
+
+        new_sub = await subscription_service.create_subscription(
+            db,
+            user_id=updated_payment.user_id,
+            obj_in=SubscriptionCreate(
+                amount_kobo=updated_payment.amount,
+                plan=plan_name,
+                status="active",
+                starts_at=now,
+                expires_at=now + timedelta(days=30),
+                auto_renew=False,
+            ),
+        )
+        updated_payment.subscription_id = new_sub.id
+        db.add(updated_payment)
+        await db.commit()
+        logger.info(
+            f"Created new {plan_name} subscription {new_sub.id} for payment {reference}."
+        )
+
+    # Send WhatsApp Confirmation
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.models.user import User
+    from app.services.message_types import Button, ButtonMsg
+    from app.services.whatsapp_service import whatsapp_service
+
+    user_query = (
+        select(User)
+        .options(selectinload(User.profile))
+        .where(User.id == updated_payment.user_id)
+    )
+    user = (await db.execute(user_query)).scalars().first()
+
+    if user and user.profile:
+        msg = ButtonMsg(
+            body=(
+                "🎉 *Payment Successful!*\n\n"
+                "Your Premium Subscription is now active! "
+                "You now have full access to Exercise Reminders, "
+                "Water Intake, and Adherence Reports."
+            ),
+            buttons=[Button(id="go_menu", text="🏠 Main Menu")],
+        )
+        await whatsapp_service.send(
+            user.profile.whatsapp_number, msg, db=db, user_id=user.id
         )
 
     return True

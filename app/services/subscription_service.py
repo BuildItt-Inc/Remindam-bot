@@ -12,7 +12,7 @@ from app.schemas.subscription import SubscriptionCreate, SubscriptionUpdate
 
 class SubscriptionService:
     def is_trial_active(self, user: User) -> bool:
-        """Check if the user's 3-day free trial is still active."""
+        """Check if the user's 2-day free trial is still active."""
         if not user.trial_start_date:
             return False
 
@@ -25,14 +25,34 @@ class SubscriptionService:
         sub = await self.get_user_subscription(db, user_id)
         return sub is not None
 
-    async def can_access_medications(self, db: AsyncSession, user: User) -> bool:
+    async def can_add_reminder(self, db: AsyncSession, user: User) -> bool:
         """
-        Medications are available during the free trial
-        OR with an active subscription.
+        Check if the user is allowed to add a new reminder (Medication, Exercise, or Water).
+        - Free Trial or Standard Plan: max 5 active reminders total.
+        - Premium Plan: unlimited reminders.
         """
+        from sqlalchemy import func, select
+
+        from app.models.medication import Medication
+
+        count_q = select(func.count()).where(
+            Medication.user_id == user.id, Medication.is_active.is_(True)
+        )
+        count = await db.scalar(count_q)
+
         if self.is_trial_active(user):
-            return True
-        return await self.has_active_subscription(db, user.id)
+            # Trial = Standard tier = max 5 reminders total
+            return count < 5
+
+        sub = await self.get_user_subscription(db, user.id)
+        if not sub:
+            return False
+
+        if sub.plan == "standard":
+            return count < 5
+
+        # Premium = unlimited
+        return True
 
     async def can_access_reports(self, db: AsyncSession, user_id: UUID) -> bool:
         """

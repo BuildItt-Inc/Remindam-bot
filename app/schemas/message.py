@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 class MessageLogCreate(BaseModel):
     user_id: UUID
     reminder_log_id: UUID | None = None
-    twilio_sid: str | None = None
+    provider_message_id: str | None = None
     status: str = "sent"  # sent, delivered, failed
     direction: str = "outbound"
 

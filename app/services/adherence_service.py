@@ -181,7 +181,7 @@ class AdherenceService:
         result = await db.execute(query)
         logs = result.scalars().all()
 
-        # Group by medication
+        # Group by item (medication, exercise, or water intake)
         med_stats: dict[str, dict] = {}
         for log in logs:
             med = log.schedule.medication
@@ -189,7 +189,12 @@ class AdherenceService:
             if key not in med_stats:
                 med_stats[key] = {
                     "name": med.name,
-                    "form": med.medication_form,
+                    "item_type": med.item_type or "medication",
+                    "form": getattr(
+                        med.medication_form, "value", str(med.medication_form)
+                    )
+                    if med.medication_form
+                    else None,
                     "taken": 0,
                     "missed": 0,
                     "total": 0,

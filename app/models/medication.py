@@ -47,6 +47,14 @@ class DosageUnit(enum.StrEnum):
     APPLICATIONS = "applications"
 
 
+class ItemType(enum.StrEnum):
+    """Type of trackable item."""
+
+    MEDICATION = "medication"
+    EXERCISE = "exercise"
+    WATER_INTAKE = "water_intake"
+
+
 class Medication(Base):
     """A medication registered by the user. Includes refill tracking."""
 
@@ -59,7 +67,10 @@ class Medication(Base):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    medication_form: Mapped[str] = mapped_column(String(20), nullable=False)
+    item_type: Mapped[str] = mapped_column(
+        String(20), default=ItemType.MEDICATION, nullable=False
+    )
+    medication_form: Mapped[str | None] = mapped_column(String(20), nullable=True)
     dosage: Mapped[str | None] = mapped_column(
         String(100), nullable=True
     )  # Legacy free-text field, kept for backward compatibility

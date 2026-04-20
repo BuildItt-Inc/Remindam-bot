@@ -1,81 +1,214 @@
+"""WhatsApp messaging via Twilio.
+
+Supports sending messages via Twilio Content API (native buttons/lists)
+with fallback to plain text when no content_sid is available.
+
+Falls back to mock mode when Twilio credentials are not set.
+"""
+
+import json
 import logging
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from twilio.rest import Client
 
 from app.config import settings
 from app.models.message import MessageLog
+from app.services.message_types import Msg
 
 logger = logging.getLogger(__name__)
 
 
 class WhatsAppService:
     def __init__(self):
-        # Initialize Twilio client only if configured
-        if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN:
-            self.client = Client(
-                settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN
-            )
-            self.from_number = f"whatsapp:{settings.TWILIO_WHATSAPP_NUMBER}"
-        else:
-            self.client = None
+        self.account_sid = settings.TWILIO_ACCOUNT_SID
+        self.auth_token = settings.TWILIO_AUTH_TOKEN
+        self.from_number = settings.TWILIO_WHATSAPP_NUMBER
+        self.messaging_service_sid = settings.TWILIO_MESSAGING_SERVICE_SID
+        self.mock_mode = not self.account_sid or not self.auth_token
+
+        if self.mock_mode:
             logger.warning(
-                "Twilio credentials not found. WhatsAppService will run in mock mode."
+                "Twilio credentials not set. " "WhatsAppService running in mock mode."
             )
 
-    async def send_message(
+    def _get_client(self):
+        """Lazily create Twilio client to avoid import errors in tests."""
+        from twilio.rest import Client
+
+        return Client(self.account_sid, self.auth_token)
+
+    # ── Public API ──
+
+    async def send(
         self,
         to_number: str,
-        message: str,
+        msg: Msg,
+        *,
         db: AsyncSession | None = None,
         user_id: UUID | None = None,
         reminder_log_id: UUID | None = None,
     ) -> str | None:
-        """
-        Send a WhatsApp message using Twilio and log the delivery metadata.
-        If credentials are not set, it simply logs the message (mock mode).
+        """Send a structured message.
 
-        Returns the twilio_sid if successful, or a mock SID if in mock mode.
+        If the message has a content_sid, sends via Twilio Content API
+        (native buttons/lists). Otherwise sends as plain text.
+
+        Returns the Twilio message SID (or mock ID).
         """
-        to_whatsapp = f"whatsapp:{to_number}"
-        twilio_sid = None
+        content_sid = getattr(msg, "content_sid", "")
+        content_variables = getattr(msg, "content_variables", {})
+
+        if content_sid:
+            return await self._send_template(
+                to_number,
+                content_sid,
+                content_variables,
+                db=db,
+                user_id=user_id,
+                reminder_log_id=reminder_log_id,
+            )
+
+        # Fallback: send plain text
+        text = msg.body
+        return await self._send_text(
+            to_number,
+            text,
+            db=db,
+            user_id=user_id,
+            reminder_log_id=reminder_log_id,
+        )
+
+    async def _send_template(
+        self,
+        to_number: str,
+        content_sid: str,
+        content_variables: dict,
+        *,
+        db: AsyncSession | None = None,
+        user_id: UUID | None = None,
+        reminder_log_id: UUID | None = None,
+    ) -> str | None:
+        """Send a message using a Twilio Content Template (native buttons/lists)."""
+        msg_id = None
         status = "failed"
 
-        if self.client:
+        if not self.mock_mode:
             try:
-                msg = self.client.messages.create(
-                    body=message, from_=self.from_number, to=to_whatsapp
-                )
-                twilio_sid = msg.sid
+                client = self._get_client()
+                kwargs = {
+                    "content_sid": content_sid,
+                    "to": f"whatsapp:{to_number}",
+                }
+
+                if content_variables:
+                    kwargs["content_variables"] = json.dumps(content_variables)
+
+                # Use messaging_service_sid for production, from_ for sandbox
+                if self.messaging_service_sid:
+                    kwargs["messaging_service_sid"] = self.messaging_service_sid
+                else:
+                    kwargs["from_"] = f"whatsapp:{self.from_number}"
+
+                twilio_msg = client.messages.create(**kwargs)
+                msg_id = twilio_msg.sid
                 status = "sent"
                 logger.info(
-                    f"Sent WhatsApp message to {to_whatsapp}, SID: {twilio_sid}"
+                    "Sent WhatsApp template %s to %s, sid: %s",
+                    content_sid,
+                    to_number,
+                    msg_id,
                 )
             except Exception as e:
-                logger.error(f"Failed to send WhatsApp message to {to_whatsapp}: {e}")
+                logger.error(
+                    "Failed to send WhatsApp template to %s: %s",
+                    to_number,
+                    e,
+                )
         else:
-            # Mock mode
-            twilio_sid = f"MOCK_{UUID(int=0)}"
+            msg_id = f"MOCK_{UUID(int=0)}"
             status = "sent"
-            logger.info(f"[MOCK WHATSAPP] To: {to_whatsapp} | Message: {message}")
+            logger.info(
+                "[MOCK WHATSAPP] To: %s | Template: %s | Vars: %s",
+                to_number,
+                content_sid,
+                content_variables,
+            )
 
-        # Lite Logging: Store only metadata, no content for privacy
+        await self._log(db, user_id, reminder_log_id, msg_id, status)
+        return msg_id
+
+    async def _send_text(
+        self,
+        to_number: str,
+        message: str,
+        *,
+        media_url: str | None = None,
+        db: AsyncSession | None = None,
+        user_id: UUID | None = None,
+        reminder_log_id: UUID | None = None,
+    ) -> str | None:
+        """Send a plain text message (or media) via Twilio."""
+        msg_id = None
+        status = "failed"
+
+        if not self.mock_mode:
+            try:
+                client = self._get_client()
+                kwargs = {
+                    "body": message,
+                    "from_": f"whatsapp:{self.from_number}",
+                    "to": f"whatsapp:{to_number}",
+                }
+                if media_url:
+                    kwargs["media_url"] = [media_url]
+
+                twilio_msg = client.messages.create(**kwargs)
+                msg_id = twilio_msg.sid
+                status = "sent"
+                logger.info("Sent WhatsApp text to %s, sid: %s", to_number, msg_id)
+            except Exception as e:
+                logger.error(
+                    "Failed to send WhatsApp message to %s: %s",
+                    to_number,
+                    e,
+                )
+        else:
+            msg_id = f"MOCK_{UUID(int=0)}"
+            status = "sent"
+            logger.info(
+                "[MOCK WHATSAPP] To: %s | Message: %s",
+                to_number,
+                message[:80],
+            )
+
+        await self._log(db, user_id, reminder_log_id, msg_id, status)
+        return msg_id
+
+    # ── Helpers ──
+
+    async def _log(
+        self,
+        db: AsyncSession | None,
+        user_id: UUID | None,
+        reminder_log_id: UUID | None,
+        msg_id: str | None,
+        status: str,
+    ):
+        """Store message metadata (no content) for delivery tracking."""
         if db and user_id:
             try:
                 log_entry = MessageLog(
                     user_id=user_id,
                     reminder_log_id=reminder_log_id,
-                    twilio_sid=twilio_sid,
+                    provider_message_id=msg_id,
                     status=status,
                     direction="outbound",
                 )
                 db.add(log_entry)
                 await db.commit()
             except Exception as e:
-                logger.error(f"Failed to log message to DB: {e}")
-
-        return twilio_sid
+                logger.error("Failed to log message to DB: %s", e)
 
 
 whatsapp_service = WhatsAppService()
