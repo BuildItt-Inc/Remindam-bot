@@ -11,7 +11,6 @@ Handles three types of user input from Content Templates:
 """
 
 import logging
-from collections.abc import Mapping
 
 from fastapi import APIRouter, Depends, Header, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,7 +49,15 @@ async def twilio_webhook(
     validator = RequestValidator(settings.TWILIO_AUTH_TOKEN)
 
     # Format the form data to standard dict for Twilio validator
-    post_vars: Mapping[str, str] = {k: v for k, v in form_data.items()}
+    # Multi-value keys become lists automatically
+    post_vars = {}
+    for k, v in form_data.multi_items():
+        if k in post_vars:
+            if not isinstance(post_vars[k], list):
+                post_vars[k] = [post_vars[k]]
+            post_vars[k].append(v)
+        else:
+            post_vars[k] = v
 
     # Validate Signature
     if not validator.validate(url, post_vars, x_twilio_signature):

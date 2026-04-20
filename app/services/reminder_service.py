@@ -114,19 +114,24 @@ class ReminderService:
             return
 
         # --- BULK FETCH EXPERIMENT ---
-        # Cache existing logs for the relevant schedules and time window to prevent N+1 queries.
+        # Cache existing logs for the relevant schedules and time
+        # window to prevent N+1 queries.
         now = datetime.now(UTC)
         cutoff = now - timedelta(hours=1)
         max_future = now + timedelta(days=days_ahead + 2)
 
         schedule_ids = [s.id for s in schedules]
-        existing_logs_query = select(ReminderLog.schedule_id, ReminderLog.scheduled_for).where(
+        existing_logs_query = select(
+            ReminderLog.schedule_id, ReminderLog.scheduled_for
+        ).where(
             ReminderLog.schedule_id.in_(schedule_ids),
             ReminderLog.scheduled_for >= cutoff,
             ReminderLog.scheduled_for <= max_future,
         )
         existing_logs_result = await db.execute(existing_logs_query)
-        existing_set = {(row.schedule_id, row.scheduled_for) for row in existing_logs_result.all()}
+        existing_set = {
+            (row.schedule_id, row.scheduled_for) for row in existing_logs_result.all()
+        }
 
         for schedule in schedules:
             med = schedule.medication
@@ -150,7 +155,7 @@ class ReminderService:
                 # Convert the absolute point in time to UTC for the database
                 scheduled_for = local_dt.astimezone(UTC)
 
-                # Skip if the scheduled time is already firmly in the past 
+                # Skip if the scheduled time is already firmly in the past
                 # (more than 1 hour ago)
                 if scheduled_for < cutoff:
                     continue
@@ -163,8 +168,6 @@ class ReminderService:
                         status="pending",
                     )
                     db.add(new_log)
-
-        await db.commit()
 
 
 reminder_service = ReminderService()

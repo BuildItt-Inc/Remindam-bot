@@ -32,17 +32,24 @@ async def paystack_webhook(
 
     # 2. Parse event from raw bytes (avoid double-read)
     try:
-        data = json.loads(payload)
-    except json.JSONDecodeError:
+        from pydantic import BaseModel
+
+        class PaystackWebhookEvent(BaseModel):
+            event: str
+            data: dict
+
+        raw_data = json.loads(payload)
+        parsed_event = PaystackWebhookEvent.model_validate(raw_data)
+        event = parsed_event.event
+        data = parsed_event.data
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid JSON payload",
         )
 
-    event = data.get("event")
-
     if event == "charge.success":
-        reference = data["data"]["reference"]
+        reference = data.get("reference")
         success = await process_successful_payment(db, reference)
         if not success:
             raise HTTPException(

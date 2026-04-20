@@ -1528,12 +1528,9 @@ class FlowService:
         elif b == "go_menu" or b in ("no", "n", "menu", "main menu", "nah"):
             from app.services.subscription_service import subscription_service
 
-            is_prem = await subscription_service.has_active_subscription(
-                db, user.id, "premium"
-            )
-            is_std = await subscription_service.has_active_subscription(
-                db, user.id, "standard"
-            )
+            sub = await subscription_service.get_user_subscription(db, user.id)
+            is_prem = sub and sub.plan == "premium"
+            is_std = sub and sub.plan == "standard"
             return main_menu(is_premium=is_prem, is_standard=is_std), "idle", None
         elif b == "legal_privacy" or b in (
             "legal",

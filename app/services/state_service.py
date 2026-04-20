@@ -57,14 +57,19 @@ class StateService:
         data_key: str,
         data_value: Any,
     ):
-        """Update a specific data field without changing the state."""
-        state_info = await self.get_state(whatsapp_number)
-        state_info["data"][data_key] = data_value
-        await self.set_state(
-            whatsapp_number,
-            state_info["state"],
-            state_info["data"],
-        )
+        """Update a specific data field atomically using a Lua script."""
+        key = f"state:{whatsapp_number}"
+        script = """
+        local val = redis.call('GET', KEYS[1])
+        if not val then
+            val = '{"state": "idle", "data": {}}'
+        end
+        local decoded = cjson.decode(val)
+        decoded.data[ARGV[1]] = cjson.decode(ARGV[2])
+        redis.call('SET', KEYS[1], cjson.encode(decoded))
+        return true
+        """
+        await self.redis.eval(script, 1, key, data_key, json.dumps(data_value))
 
 
 state_service = StateService()

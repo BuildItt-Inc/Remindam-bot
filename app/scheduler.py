@@ -95,6 +95,7 @@ def generate_future_reminders_task():
     async def generate():
         async with async_session() as db:
             await reminder_service.generate_future_reminders(db, days_ahead=2)
+            await db.commit()
             logger.info("Successfully generated future reminders.")
 
     run_async(generate())
