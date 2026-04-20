@@ -25,7 +25,7 @@ class ReportResult(BaseModel):
     medication_breakdown: list[dict] = []
 
 
-@router.post("/generate/weekly", response_model=ReportResult)
+@router.post("/generate/{user_id}/weekly", response_model=ReportResult)
 @limiter.limit("5/minute")
 async def generate_weekly_report(
     request: Request,
@@ -64,7 +64,7 @@ async def generate_weekly_report(
     return result
 
 
-@router.post("/generate/monthly", response_model=ReportResult)
+@router.post("/generate/{user_id}/monthly", response_model=ReportResult)
 @limiter.limit("5/minute")
 async def generate_monthly_report(
     request: Request,

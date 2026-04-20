@@ -480,12 +480,12 @@ class FlowService:
             return await self._start_delete_flow(db, user)
 
         if body == "menu_report":
-            if not has_sub:
+            if not is_premium:
                 return _premium_required_msg(), "idle", None
             return await self._generate_report(db, user, report_type="weekly")
 
         if body == "menu_report_monthly":
-            if not has_sub:
+            if not is_premium:
                 return _premium_required_msg(), "idle", None
             return await self._generate_report(db, user, report_type="monthly")
 
