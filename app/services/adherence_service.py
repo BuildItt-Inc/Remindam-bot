@@ -21,8 +21,10 @@ class AdherenceService:
     The report flow:
     1. User requests a report via WhatsApp (e.g., "Send my weekly report")
     2. This service calculates stats from ReminderLog
-    3. Returns a formatted WhatsApp message + a PDF file path
-    4. The WhatsApp service sends the text message and attaches the PDF
+    3. Based on report type:
+       - Weekly: Returns a formatted WhatsApp message (text only).
+       - Monthly: Returns a formatted WhatsApp message + a PDF file path.
+    4. The WhatsApp service sends the response accordingly.
     """
 
     async def generate_report(
@@ -102,7 +104,9 @@ class AdherenceService:
         )
 
         whatsapp_message = format_whatsapp_report(**format_kwargs)
-        pdf_path = generate_pdf_report(**format_kwargs)
+        pdf_path = None
+        if report_type == "monthly":
+            pdf_path = generate_pdf_report(**format_kwargs)
 
         return {
             "report": report,
@@ -177,7 +181,7 @@ class AdherenceService:
         result = await db.execute(query)
         logs = result.scalars().all()
 
-        # Group by medication
+        # Group by item (medication, exercise, or water intake)
         med_stats: dict[str, dict] = {}
         for log in logs:
             med = log.schedule.medication
@@ -185,7 +189,12 @@ class AdherenceService:
             if key not in med_stats:
                 med_stats[key] = {
                     "name": med.name,
-                    "form": med.medication_form,
+                    "item_type": med.item_type or "medication",
+                    "form": getattr(
+                        med.medication_form, "value", str(med.medication_form)
+                    )
+                    if med.medication_form
+                    else None,
                     "taken": 0,
                     "missed": 0,
                     "total": 0,

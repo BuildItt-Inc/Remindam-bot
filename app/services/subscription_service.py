@@ -12,7 +12,7 @@ from app.schemas.subscription import SubscriptionCreate, SubscriptionUpdate
 
 class SubscriptionService:
     def is_trial_active(self, user: User) -> bool:
-        """Check if the user's 3-day free trial is still active."""
+        """Check if the user's 2-day free trial is still active."""
         if not user.trial_start_date:
             return False
 
@@ -20,19 +20,47 @@ class SubscriptionService:
         trial_end = user.trial_start_date + timedelta(days=settings.TRIAL_DAYS)
         return now <= trial_end
 
-    async def has_active_subscription(self, db: AsyncSession, user_id: UUID) -> bool:
-        """Check if the user has an active, paid subscription."""
+    async def has_active_subscription(
+        self, db: AsyncSession, user_id: UUID, plan: str | None = None
+    ) -> bool:
+        """
+        Check if the user has an active, paid subscription,
+        optionally for a specific plan.
+        """
         sub = await self.get_user_subscription(db, user_id)
-        return sub is not None
+        if not sub:
+            return False
+        return sub.plan == plan if plan else True
 
-    async def can_access_medications(self, db: AsyncSession, user: User) -> bool:
+    async def can_add_reminder(self, db: AsyncSession, user: User) -> bool:
         """
-        Medications are available during the free trial
-        OR with an active subscription.
+        Check if the user is allowed to add a new reminder
+        (Medication, Exercise, or Water).
+        - Free Trial or Standard Plan: max 5 active reminders total.
+        - Premium Plan: unlimited reminders.
         """
+        from sqlalchemy import func, select
+
+        from app.models.medication import Medication
+
+        count_q = select(func.count()).where(
+            Medication.user_id == user.id, Medication.is_active.is_(True)
+        )
+        count = await db.scalar(count_q)
+
         if self.is_trial_active(user):
-            return True
-        return await self.has_active_subscription(db, user.id)
+            # Trial = Standard tier = max 5 reminders total
+            return count < 5
+
+        sub = await self.get_user_subscription(db, user.id)
+        if not sub:
+            return False
+
+        if sub.plan == "standard":
+            return count < 5
+
+        # Premium = unlimited
+        return True
 
     async def can_access_reports(self, db: AsyncSession, user_id: UUID) -> bool:
         """
@@ -55,7 +83,7 @@ class SubscriptionService:
         self, db: AsyncSession, *, user_id: UUID, obj_in: SubscriptionCreate
     ) -> Subscription:
         """Create a new subscription record. Defaults to ₦500 if not provided."""
-        amount = obj_in.amount_kobo or settings.SUBSCRIPTION_AMOUNT_KOBO
+        amount = obj_in.amount_kobo or settings.SUBSCRIPTION_AMOUNT_STANDARD_KOBO
 
         new_sub = Subscription(
             user_id=user_id,

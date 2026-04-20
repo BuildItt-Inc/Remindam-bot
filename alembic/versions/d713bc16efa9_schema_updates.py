@@ -53,15 +53,28 @@ def upgrade() -> None:
     )
     op.add_column(
         "medications",
-        sa.Column("medication_form", sa.String(length=20), nullable=False),
+        sa.Column(
+            "medication_form",
+            sa.String(length=20),
+            server_default=sa.text("'tablet'"),
+            nullable=False,
+        ),
     )
+    op.alter_column("medications", "medication_form", server_default=None)
     op.add_column("medications", sa.Column("dosage_amount", sa.Float(), nullable=True))
     op.add_column(
         "medications", sa.Column("dosage_unit", sa.String(length=20), nullable=True)
     )
     op.add_column(
-        "medications", sa.Column("frequency", sa.String(length=50), nullable=False)
+        "medications",
+        sa.Column(
+            "frequency",
+            sa.String(length=50),
+            server_default=sa.text("'daily'"),
+            nullable=False,
+        ),
     )
+    op.alter_column("medications", "frequency", server_default=None)
     op.add_column("medications", sa.Column("supply_days", sa.Integer(), nullable=True))
     op.add_column(
         "medications",
@@ -73,8 +86,14 @@ def upgrade() -> None:
     )
     op.add_column(
         "medications",
-        sa.Column("refill_reminder_days_before", sa.Integer(), nullable=False),
+        sa.Column(
+            "refill_reminder_days_before",
+            sa.Integer(),
+            server_default=sa.text("0"),
+            nullable=False,
+        ),
     )
+    op.alter_column("medications", "refill_reminder_days_before", server_default=None)
     op.alter_column(
         "medications", "dosage", existing_type=sa.VARCHAR(length=100), nullable=True
     )

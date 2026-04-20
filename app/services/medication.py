@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.medication import Medication, MedicationSchedule
 from app.schemas.medication import MedicationCreate, MedicationUpdate
+from app.services.reminder_service import reminder_service
 from app.services.subscription_service import subscription_service
 from app.services.user_service import user_service
 
@@ -18,9 +19,9 @@ class MedicationService:
         """Create a new medication and its associated schedules for a user."""
         # 0. Enforce Trial & Subscription logic
         user = await user_service.get_by_id(db, user_id=user_id)
-        if not user or not await subscription_service.can_access_medications(db, user):
+        if not user or not await subscription_service.can_add_reminder(db, user):
             raise ValueError(
-                "Your 3-day free trial has expired. "
+                "Your 2-day free trial has expired. "
                 "Please subscribe for just ₦500/month to add more medications."
             )
 
@@ -38,6 +39,10 @@ class MedicationService:
 
         await db.commit()
         await db.refresh(new_medication)
+
+        # Pre-generate reminder logs for this new medication
+        await reminder_service.generate_future_reminders(db, user_id=user_id)
+
         return await self.get_medication_by_id(db, new_medication.id)
 
     async def get_medication_by_id(

@@ -19,6 +19,9 @@ class User(Base):
     trial_start_date: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    terms_accepted_at: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -58,7 +61,7 @@ class UserProfile(Base):
     )
     first_name: Mapped[str | None] = mapped_column(String(100))
     last_name: Mapped[str | None] = mapped_column(String(100))
-    timezone: Mapped[str] = mapped_column(String(50), default="UTC")
+    timezone: Mapped[str] = mapped_column(String(50), default="Africa/Lagos")
     reminder_window_minutes: Mapped[int] = mapped_column(Integer, default=30)
     notification_preferences: Mapped[str] = mapped_column(
         String(20), default="whatsapp"

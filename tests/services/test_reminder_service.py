@@ -57,8 +57,16 @@ async def test_create_reminder_log(db: AsyncSession, medication_with_schedule):
 
 @pytest.mark.asyncio
 async def test_get_due_reminders(db: AsyncSession, medication_with_schedule):
+    from sqlalchemy import delete
+
+    from app.models.reminder import ReminderLog
+
     user, medication = medication_with_schedule
     schedule = medication.schedules[0]
+
+    # Clear pre-generated reminders
+    await db.execute(delete(ReminderLog).where(ReminderLog.user_id == user.id))
+    await db.commit()
 
     # Create a reminder due in the past
     past_due = datetime.now(UTC) - timedelta(minutes=5)

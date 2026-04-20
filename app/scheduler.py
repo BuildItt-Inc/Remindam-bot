@@ -9,6 +9,7 @@ from celery.schedules import crontab
 from app.config import settings
 from app.database import async_session
 from app.schemas.reminder import ReminderLogUpdate
+from app.services.message_types import Button, ButtonMsg
 from app.services.reminder_service import reminder_service
 from app.services.whatsapp_service import whatsapp_service
 
@@ -32,6 +33,10 @@ celery_app.conf.update(
         "check-reminders-every-minute": {
             "task": "app.scheduler.check_for_due_reminders",
             "schedule": crontab(minute="*"),  # Every minute
+        },
+        "generate-future-reminders-hourly": {
+            "task": "app.scheduler.generate_future_reminders_task",
+            "schedule": crontab(minute="0"),  # Every hour
         },
     },
 )
@@ -78,12 +83,30 @@ def check_for_due_reminders():
     run_async(get_and_queue())
 
 
+@celery_app.task(name="app.scheduler.generate_future_reminders_task")
+def generate_future_reminders_task():
+    """
+    Periodic Task:
+    Generates missing ReminderLog entries for all active
+    schedules for the next 48 hours.
+    """
+    logger.info("Generating future reminders...")
+
+    async def generate():
+        async with async_session() as db:
+            await reminder_service.generate_future_reminders(db, days_ahead=2)
+            await db.commit()
+            logger.info("Successfully generated future reminders.")
+
+    run_async(generate())
+
+
 @celery_app.task(name="app.scheduler.send_whatsapp_task")
 def send_whatsapp_task(reminder_log_id: str):
     """
     Consumer Task:
     1. Fetches the ReminderLog.
-    2. Sends the WhatsApp message.
+    2. Sends the WhatsApp message using Content Templates.
     3. Logs metadata to DB.
     4. Updates Reminder status to 'sent'.
     """
@@ -120,30 +143,105 @@ def send_whatsapp_task(reminder_log_id: str):
             user = reminder.user
             med = reminder.schedule.medication
 
-            if med.dosage_amount and med.dosage_unit:
-                dosage_info = f"{med.dosage_amount:g} {med.dosage_unit}"
-            elif med.dosage:
-                dosage_info = med.dosage
+            first_name = user.profile.first_name
+            if not first_name or first_name.strip().lower() == "new":
+                name_display = ""
             else:
-                dosage_info = ""
+                name_display = first_name.strip()
 
-            form_label = med.medication_form or ""
-            dosage_part = f" — {dosage_info}" if dosage_info else ""
+            item_type = getattr(med, "item_type", "medication")
+            msg = None
 
-            message_body = (
-                f"Hello {user.profile.first_name}, it's time for your "
-                f"{med.name} ({form_label}{dosage_part})."
-            )
+            if item_type == "exercise":
+                duration_str = f" ({med.dosage})" if med.dosage else ""
+                msg = ButtonMsg(
+                    body=(
+                        f"🏃 Hey {name_display}, it's time for your "
+                        f"*{med.name}*{duration_str}! Let's go! 💪"
+                    ),
+                    buttons=[
+                        Button(id=f"take_{reminder.id}", text="✅ Done"),
+                        Button(id=f"snooze_{reminder.id}", text="⏰ Snooze (3m)"),
+                        Button(id=f"skip_{reminder.id}", text="❌ Skip"),
+                    ],
+                    content_sid=settings.CT_REMINDER_EXERCISE,
+                    content_variables={
+                        "1": name_display or "there",
+                        "2": med.name,
+                    },
+                )
 
-            twilio_sid = await whatsapp_service.send_message(
-                to_number=user.profile.whatsapp_number,
-                message=message_body,
+            elif item_type == "water_intake":
+                amount = med.dosage or "some water"
+                msg = ButtonMsg(
+                    body=(
+                        f"💧 Hey {name_display}, time to drink "
+                        f"*{amount}* of water! Stay hydrated! 🥤"
+                    ),
+                    buttons=[
+                        Button(id=f"take_{reminder.id}", text="✅ Done"),
+                        Button(id=f"snooze_{reminder.id}", text="⏰ Snooze (3m)"),
+                        Button(id=f"skip_{reminder.id}", text="❌ Skip"),
+                    ],
+                    content_sid=settings.CT_REMINDER_WATER,
+                    content_variables={
+                        "1": name_display or "there",
+                        "2": amount,
+                    },
+                )
+
+            else:
+                # Default: medication
+                dosage_val = ""
+                if med.dosage_amount:
+                    amount_str = f"{med.dosage_amount:g}"
+                    unit_str = med.dosage_unit or med.medication_form or ""
+                    dosage_val = f"{amount_str} {unit_str}".strip()
+                elif med.dosage:
+                    dosage_val = med.dosage
+
+                msg = ButtonMsg(
+                    body=(
+                        f"💊 Hello {name_display}, it's time to take "
+                        f"*{dosage_val}* of *{med.name}*. "
+                        "Stay healthy! ❤️"
+                    ),
+                    buttons=[
+                        Button(id=f"take_{reminder.id}", text="✅ Taken"),
+                        Button(id=f"snooze_{reminder.id}", text="⏰ Snooze (3m)"),
+                        Button(id=f"skip_{reminder.id}", text="❌ Skip"),
+                    ],
+                    content_sid=settings.CT_REMINDER_MEDICATION,
+                    content_variables={
+                        "1": name_display or "there",
+                        "2": dosage_val or "your dose",
+                        "3": med.name,
+                    },
+                )
+
+            msg_id = await whatsapp_service.send(
+                user.profile.whatsapp_number,
+                msg,
                 db=db,
                 user_id=user.id,
                 reminder_log_id=reminder.id,
             )
 
-            if twilio_sid:
+            # Store last reminder ID so the flow engine can map
+            # template button IDs (take_action) → take_{uuid}
+            if msg_id:
+                try:
+                    from app.services.state_service import state_service
+
+                    await state_service.update_data(
+                        user.profile.whatsapp_number,
+                        "_last_reminder_id",
+                        str(reminder.id),
+                    )
+                except Exception:
+                    logger.warning("Redis unavailable, last_reminder_id not saved")
+
+            if msg_id:
                 await reminder_service.update_reminder_status(
                     db,
                     log_id=reminder.id,

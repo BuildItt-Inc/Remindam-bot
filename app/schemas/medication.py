@@ -1,9 +1,13 @@
 from datetime import datetime, time
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.medication import DosageUnit, MedicationForm, MedicationFrequency
+from app.models.medication import (
+    DosageUnit,
+    ItemType,
+    MedicationFrequency,
+)
 
 
 class MedicationScheduleBase(BaseModel):
@@ -30,13 +34,14 @@ class MedicationScheduleResponse(MedicationScheduleBase):
 
 
 class MedicationBase(BaseModel):
-    name: str
-    medication_form: MedicationForm
-    dosage: str | None = None
+    name: str = Field(..., max_length=150)
+    item_type: ItemType = ItemType.MEDICATION
+    medication_form: str | None = None
+    dosage: str | None = Field(None, max_length=150)
     dosage_amount: float | None = None
     dosage_unit: DosageUnit | None = None
     frequency: MedicationFrequency = MedicationFrequency.DAILY
-    times_per_day: int
+    times_per_day: int = 1
     supply_days: int | None = None
     next_refill_date: datetime | None = None
     treatment_end_date: datetime | None = None
@@ -49,7 +54,8 @@ class MedicationCreate(MedicationBase):
 
 class MedicationUpdate(BaseModel):
     name: str | None = None
-    medication_form: MedicationForm | None = None
+    item_type: ItemType | None = None
+    medication_form: str | None = None
     dosage: str | None = None
     dosage_amount: float | None = None
     dosage_unit: DosageUnit | None = None
