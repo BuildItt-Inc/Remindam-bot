@@ -110,6 +110,24 @@ class ReminderService:
         result = await db.execute(query)
         schedules = result.scalars().all()
 
+        if not schedules:
+            return
+
+        # --- BULK FETCH EXPERIMENT ---
+        # Cache existing logs for the relevant schedules and time window to prevent N+1 queries.
+        now = datetime.now(UTC)
+        cutoff = now - timedelta(hours=1)
+        max_future = now + timedelta(days=days_ahead + 2)
+
+        schedule_ids = [s.id for s in schedules]
+        existing_logs_query = select(ReminderLog.schedule_id, ReminderLog.scheduled_for).where(
+            ReminderLog.schedule_id.in_(schedule_ids),
+            ReminderLog.scheduled_for >= cutoff,
+            ReminderLog.scheduled_for <= max_future,
+        )
+        existing_logs_result = await db.execute(existing_logs_query)
+        existing_set = {(row.schedule_id, row.scheduled_for) for row in existing_logs_result.all()}
+
         for schedule in schedules:
             med = schedule.medication
             user = med.user
@@ -132,19 +150,12 @@ class ReminderService:
                 # Convert the absolute point in time to UTC for the database
                 scheduled_for = local_dt.astimezone(UTC)
 
-                # Skip if the scheduled time is already firmly in the past
+                # Skip if the scheduled time is already firmly in the past 
                 # (more than 1 hour ago)
-                if scheduled_for < now - timedelta(hours=1):
+                if scheduled_for < cutoff:
                     continue
 
-                # Check if this exact reminder already exists
-                check_query = select(ReminderLog).where(
-                    ReminderLog.schedule_id == schedule.id,
-                    ReminderLog.scheduled_for == scheduled_for,
-                )
-                existing = (await db.execute(check_query)).scalars().first()
-
-                if not existing:
+                if (schedule.id, scheduled_for) not in existing_set:
                     new_log = ReminderLog(
                         schedule_id=schedule.id,
                         user_id=med.user_id,

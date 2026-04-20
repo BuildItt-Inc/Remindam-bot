@@ -44,7 +44,9 @@ class Settings(BaseSettings):
 
     PAYSTACK_SECRET_KEY: str = ""
 
-    API_KEY: str = Field(..., description="API key for internal REST endpoints")
+    API_KEY: str = Field(
+        default="dev-secret-key", description="API key for internal REST endpoints"
+    )
 
     TRIAL_DAYS: int = 1
     GRACE_DAYS: int = 2
