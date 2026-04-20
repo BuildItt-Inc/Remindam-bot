@@ -40,7 +40,9 @@ async def test_dynamic_upgrade_flow_simulation(db: AsyncSession, pay_user):
         },
     }
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post") as mock_post, patch(
+        "app.services.payment_service.settings.PAYSTACK_SECRET_KEY", "test_key"
+    ):
         mock_post.return_value = AsyncMock(
             status_code=200, json=lambda: mock_response, raise_for_status=lambda: None
         )
