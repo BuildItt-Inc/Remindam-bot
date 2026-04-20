@@ -1,0 +1,83 @@
+name: Backend CI/CD
+
+on:
+  pull_request:
+    branches: [dev]
+  push:
+    branches: [dev]
+
+jobs:
+  # ============================================================================
+  # CI - Test, Lint & Check Migrations
+  # ============================================================================
+  test:
+    name: Test, Lint & Check Migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: remindam
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:password@localhost:5432/remindam
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET_KEY: change-me
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv and setup Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Lint with Ruff
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Check Alembic heads
+        run: |
+          HEAD_COUNT=$(uv run alembic heads | grep "head" | wc -l)
+          if [ "$HEAD_COUNT" -gt 1 ]; then
+            echo "Multiple Alembic heads detected!"
+            uv run alembic heads
+            exit 1
+          fi
+          echo "No multiple heads detected."
+
+      - name: Run migrations
+        run: uv run alembic upgrade head
+
+      - name: Run tests with Pytest
+        run: uv run pytest tests/ --verbose
