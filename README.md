@@ -1,164 +1,77 @@
-# WhatsApp Medication Reminder Bot (Remindam)
+# Remindam Bot Backend
 
-A reliable, NDPR-compliant WhatsApp bot that helps users remember their medication schedules via text-based interactive menus powered by Twilio.
+Internal repository for the Remindam WhatsApp bot backend service.
 
-## Tech Stack
-* **Framework:** FastAPI
+## Architecture
+
+* **API Layer:** FastAPI (handles webhooks, user endpoints, Paystack webhooks)
+* **Messaging integration:** Twilio WhatsApp API
+* **Task Queue:** Celery with Redis broker
 * **Database:** PostgreSQL (Async) + SQLAlchemy + Alembic
-* **Task Queue:** Celery + Celery Beat + Redis
-* **Messaging:** Twilio (WhatsApp)
-* **Payments:** Paystack
-* **Package Manager:** [uv](https://docs.astral.sh/uv/)
+* **Environment:** `uv` for dependency management
 
----
+## Local Development
 
-## 🚀 Quick Setup Guide
-
-### 1. Prerequisites
-Ensure you have the following installed on your machine:
-* Python `3.12+`
+### Prerequisites
+* Python 3.12
 * PostgreSQL
-* Redis (running locally on port 6379 or update `.env` accordingly)
-* [uv package manager](https://docs.astral.sh/uv/getting-started/installation/)
+* Redis (local or remote)
+* `uv` package manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
 
-  **Linux/macOS:**
-```sh
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-  **Windows:**
-```powershell
-  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
+### Setup
 
-### 2. Clone and Setup Environment
-Clone the repository and install all dependencies (including dev tools and pre-commit hooks) using `uv`.
-
-```sh
-# Clone repo
-git clone <your-repo-url>
-cd Remindam-bot
-
-# Install dependencies and sync virtual environment
-uv sync --all-extras
-```
-
-### 3. Environment Variables
-Create a `.env` file in the root directory and copy these variables:
-
-```env
-# Database configuration
-DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/remindam
-
-# Redis configuration
-REDIS_URL=redis://localhost:6379/0
-
-# Security (JWT)
-JWT_SECRET_KEY=change-me
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-REFRESH_TOKEN_EXPIRE_DAYS=7
-
-# Twilio (WhatsApp)
-TWILIO_ACCOUNT_SID=your-account-sid
-TWILIO_AUTH_TOKEN=your-auth-token
-TWILIO_WHATSAPP_NUMBER=+14155238886
-
-# Paystack (Payments)
-PAYSTACK_SECRET_KEY=sk_test_xxx
-
-# Subscription configuration
-TRIAL_DAYS=2
-GRACE_DAYS=2
-```
-> **Note:** Update the `DATABASE_URL` username, password, and port to match your local PostgreSQL setup. Make sure the database actually exists! (e.g., `createdb remindam`).
-
-### 4. Twilio WhatsApp Sandbox Setup
-1. Sign up at [twilio.com](https://www.twilio.com/) and get your **Account SID** and **Auth Token** from the dashboard.
-2. Go to **Messaging → Try it out → Send a WhatsApp message** to activate the sandbox.
-3. Follow the instructions to join the sandbox (send a code from your phone to the sandbox number).
-4. Set your webhook URL in the Twilio sandbox configuration:
-   - **When a message comes in:** `https://<your-ngrok-url>/whatsapp/webhook` (HTTP POST)
-5. Add your credentials to `.env`.
-
-### 5. Database Setup & Migrations
-We use Alembic for database migrations. To apply the initial schema to your database:
-
-First, create the local database:
-```sh
-createdb remindam
-```
-> If `createdb` fails, try: `sudo -u postgres psql -c "CREATE DATABASE remindam;"`
-
-Then apply migrations:
-```sh
-uv run alembic upgrade head
-```
-
-### 6. Running the Application
-
-You'll need three terminal tabs to run the full stack locally:
-
-**Tab 1: Start the FastAPI Server**
-```sh
-uv run uvicorn app.main:app --reload
-```
-*API documentation will be available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).*
-
-**Tab 2: Start the Celery Worker (Task execution)**
-```sh
-uv run celery -A app.scheduler worker --loglevel=info
-```
-
-**Tab 3: Start Celery Beat (Scheduled tasks)**
-```sh
-uv run celery -A app.scheduler beat --loglevel=info
-```
-
-**Tab 4: Expose via Ngrok (for Twilio webhooks)**
-```sh
-ngrok http 8000
-```
-Copy the HTTPS URL and paste it into your Twilio sandbox webhook settings.
-
----
-
-## 🛠 Development Workflow
-
-### Pre-commit Hooks
-This project uses `pre-commit` to ensure code formatting and linting standards are maintained automatically.
-
-If you haven't installed the git hooks yet, run:
-```sh
-uv run pre-commit install
-```
-This will automatically format your code via `Ruff` whenever you run `git commit`. You can also format everything manually with:
-```sh
-uv run pre-commit run --all-files
-```
-
-If you prefer to run formatting manually without pre-commit:
-```sh
-uv run ruff format .
-uv run ruff check . --fix
-```
-
-### Database Migrations
-Whenever you change a SQLAlchemy model in `app/models/`:
-
-1. **Auto-generate a new migration:**
+1. Install dependencies:
    ```sh
-   uv run alembic revision --autogenerate -m "describe the change"
+   uv sync --all-extras
    ```
-2. **Apply migration to your local database:**
+
+2. Environment Variables:
+   Copy `.env.example` to `.env` and fill in the required internal keys (Twilio, Paystack, JWT secret).
+   Ensure `DATABASE_URL` matches your local Postgres credentials.
+
+3. Database Migrations:
    ```sh
    uv run alembic upgrade head
    ```
 
-### Running Tests
-We use Pytest. Run the full test suite with:
+### Running Locally
+
+You need to run the API, the Celery worker, and the scheduler concurrently.
+
 ```sh
-uv run pytest tests/ --verbose
+# Terminal 1 - API
+uv run uvicorn app.main:app --reload
+
+# Terminal 2 - Task Worker
+uv run celery -A app.scheduler worker --loglevel=info
+
+# Terminal 3 - CRON Scheduler
+uv run celery -A app.scheduler beat --loglevel=info
 ```
 
-## Review Guidelines
-Before opening a PR, always refer to our standard [CONTRIBUTING.md](./CONTRIBUTING.md). Include your ticket number in your branch name (e.g. `feat/RBD-42-some-feature`) and follow conventional commit formats.
+*To receive Twilio webhooks locally, expose port 8000 using Ngrok (`ngrok http 8000`) and set your NGrok URL as `BASE_URL` in `.env` and Twilio.*
+
+## Deployment (Coolify)
+
+This service is deployed via **Coolify** using a multi-container Docker Compose setup.
+
+### Services (`docker-compose.yml`)
+* `web` (FastAPI server)
+* `worker` (Celery background tasks)
+* `beat` (Celery scheduler for periodic reminders)
+* `db` (Postgres 16)
+* `redis` (Redis 7)
+
+### Coolify Configuration
+1. Point a new Coolify Docker Compose project to this repository.
+2. The `entrypoint.sh` automatically runs Alembic migrations on deployment before starting the web server.
+3. **Environment Variables required in Coolify:**
+   * `POSTGRES_PASSWORD` (Internal DB password)
+   * `BASE_URL` (The public domain mapping to the app)
+   * App secrets (`TWILIO_*`, `PAYSTACK_*`, etc.)
+   * *(Note: `DATABASE_URL` and `REDIS_URL` are auto-mapped internally by Compose).*
+
+## Contributing
+* We use `ruff` for linting. Install hooks via `uv run pre-commit install`.
+* Create migrations for all DB model changes via `uv run alembic revision --autogenerate -m "msg"`.
+* Ensure tests pass before pushing (`uv run pytest`).
