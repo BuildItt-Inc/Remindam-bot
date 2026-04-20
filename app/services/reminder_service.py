@@ -132,7 +132,8 @@ class ReminderService:
                 # Convert the absolute point in time to UTC for the database
                 scheduled_for = local_dt.astimezone(UTC)
 
-                # Skip if the scheduled time is already firmly in the past (more than 1 hour ago)
+                # Skip if the scheduled time is already firmly in the past
+                # (more than 1 hour ago)
                 if scheduled_for < now - timedelta(hours=1):
                     continue
 

@@ -1,5 +1,3 @@
-from app.services.message_types import TextMsg
-
 """Tests for the Twilio-based WhatsApp service."""
 
 import logging
@@ -7,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.services.message_types import TextMsg
 from app.services.whatsapp_service import WhatsAppService
 
 

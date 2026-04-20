@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.message import MessageLog
 from app.schemas.user import UserCreate, UserProfileCreate
+from app.services.message_types import TextMsg
 from app.services.user_service import user_service
 from app.services.whatsapp_service import whatsapp_service
 
@@ -16,9 +17,6 @@ async def logging_user(db: AsyncSession):
         )
     )
     return await user_service.create(db, user_in=user_in)
-
-
-from app.services.message_types import TextMsg
 
 
 @pytest.mark.asyncio

@@ -70,12 +70,12 @@ def format_whatsapp_report(
 
     # Per-item breakdown grouped by type
     if medication_breakdown:
-        _ICONS = {
+        _icons = {
             "medication": "💊",
             "exercise": "🏃",
             "water_intake": "💧",
         }
-        _LABELS = {
+        _labels = {
             "medication": "Medications",
             "exercise": "Exercise",
             "water_intake": "Water Intake",
@@ -89,8 +89,8 @@ def format_whatsapp_report(
         lines.append("")
         lines.append("📋 *Breakdown:*")
         for item_type, items in by_type.items():
-            icon = _ICONS.get(item_type, "📌")
-            label = _LABELS.get(item_type, item_type.replace("_", " ").title())
+            icon = _icons.get(item_type, "📌")
+            label = _labels.get(item_type, item_type.replace("_", " ").title())
             lines.append(f"\n{icon} *{label}*")
             for med in items:
                 med_bar = _progress_bar(med.get("adherence", 0), length=6)

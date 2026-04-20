@@ -1,7 +1,9 @@
+import html
 import json
 import logging
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -51,11 +53,6 @@ async def paystack_webhook(
     return Response(status_code=status.HTTP_200_OK)
 
 
-import html
-
-from fastapi.responses import HTMLResponse
-
-
 @router.get("/callback", response_class=HTMLResponse)
 async def paystack_callback(
     reference: str,
@@ -68,8 +65,15 @@ async def paystack_callback(
             <title>Payment Status</title>
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <style>
-                body {{ font-family: sans-serif; text-align: center; padding: 50px; background-color: #f9f9f9; }}
-                .box {{ border: 1px solid #e0e0e0; border-radius: 10px; padding: 30px; max-width: 400px; margin: 0 auto; background-color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }}
+                body {{
+                    font-family: sans-serif; text-align: center; padding: 50px;
+                    background-color: #f9f9f9;
+                }}
+                .box {{
+                    border: 1px solid #e0e0e0; border-radius: 10px; padding: 30px;
+                    max-width: 400px; margin: 0 auto; background-color: white;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+                }}
                 h1 {{ color: #28a745; margin-bottom: 10px; }}
                 p {{ color: #555; line-height: 1.5; }}
             </style>
@@ -77,8 +81,13 @@ async def paystack_callback(
         <body>
             <div class="box">
                 <h1>Payment Processing</h1>
-                <p>Your payment (Ref: <strong>{safe_ref}</strong>) is being processed.</p>
-                <p>Please close this window and return to WhatsApp. You will receive a confirmation message shortly!</p>
+                <p>
+                    Your payment (Ref: <strong>{safe_ref}</strong>) is being processed.
+                </p>
+                <p>
+                    Please close this window and return to WhatsApp.<br/>
+                    You will receive a confirmation message shortly!
+                </p>
             </div>
         </body>
     </html>

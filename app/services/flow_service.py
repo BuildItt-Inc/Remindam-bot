@@ -221,7 +221,8 @@ def _limit_reached_msg() -> ButtonMsg:
     return ButtonMsg(
         body=(
             "🚫 *Limit Reached*\n\n"
-            "Your Standard subscription / Free Trial only allows up to 5 active reminders in total.\n\n"
+            "Your Standard subscription / Free Trial only allows "
+            "up to 5 active reminders in total.\n\n"
             "Please upgrade to Premium for unlimited reminders!"
         ),
         buttons=[
@@ -1258,7 +1259,10 @@ class FlowService:
         if reminder.status in ("taken", "missed"):
             return (
                 TextMsg(
-                    body=f"📝 This reminder for *{reminder.schedule.medication.name}* was already marked as {reminder.status}."
+                    body=(
+                        f"📝 This reminder for *{reminder.schedule.medication.name}* "
+                        f"was already marked as {reminder.status}."
+                    )
                 ),
                 "idle",
                 None,
@@ -1271,11 +1275,19 @@ class FlowService:
 
         return (
             ButtonMsg(
-                body=f"✅ Great job! Your reminder for *{reminder.schedule.medication.name}* is marked as complete. Keep it up! 💪",
+                body=(
+                    f"✅ Great job! Your reminder for "
+                    f"*{reminder.schedule.medication.name}* "
+                    "is marked as complete. Keep it up! 💪"
+                ),
                 buttons=[Button(id="go_menu", text="🏠 Menu")],
                 content_sid=settings.CT_GO_MENU,
                 content_variables={
-                    "1": f"✅ Great job! Your reminder for *{reminder.schedule.medication.name}* is marked as complete. Keep it up! 💪"
+                    "1": (
+                        f"✅ Great job! Your reminder for "
+                        f"*{reminder.schedule.medication.name}* is marked as complete. "
+                        "Keep it up! 💪"
+                    )
                 },
             ),
             "idle",
@@ -1587,7 +1599,10 @@ class FlowService:
 
 
 def _is_valid_custom_text(text: str) -> bool:
-    """Validate that custom input is not gibberish (alphanumeric and reasonable length)."""
+    """
+    Validate that custom input is not gibberish
+    (alphanumeric and reasonable length).
+    """
     import re
 
     if not text or len(text) < 2 or len(text) > 40:

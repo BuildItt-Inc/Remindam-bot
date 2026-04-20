@@ -87,7 +87,8 @@ def check_for_due_reminders():
 def generate_future_reminders_task():
     """
     Periodic Task:
-    Generates missing ReminderLog entries for all active schedules for the next 48 hours.
+    Generates missing ReminderLog entries for all active
+    schedules for the next 48 hours.
     """
     logger.info("Generating future reminders...")
 

@@ -57,10 +57,10 @@ async def twilio_webhook(
         logger.warning("Invalid Twilio Signature! Attempted URL: %s", url)
         return Response(status_code=status.HTTP_403_FORBIDDEN)
 
-    From = form_data.get("From", "")
+    from_number = form_data.get("From", "")
 
     # Twilio sends "whatsapp:+234..." — strip the prefix
-    phone = From.replace("whatsapp:", "")
+    phone = from_number.replace("whatsapp:", "")
 
     # Extract the user's actual input:
     # 1. ButtonPayload — sent when user taps a Quick Reply button (Content API)

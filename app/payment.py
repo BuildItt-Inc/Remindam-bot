@@ -94,7 +94,8 @@ async def process_successful_payment(
         db.add(updated_payment)
         await db.commit()
         logger.info(
-            f"Created new {plan_name} subscription {new_sub.id} for payment {reference}."
+            f"Created new {plan_name} subscription {new_sub.id} "
+            f"for payment {reference}."
         )
 
     # Send WhatsApp Confirmation

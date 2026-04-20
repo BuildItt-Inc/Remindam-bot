@@ -24,7 +24,10 @@ async def pay_user(db: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_dynamic_upgrade_flow_simulation(db: AsyncSession, pay_user):
-    """Test that tapping upgrade generates a unique Paystack link and creates a DB record."""
+    """
+    Test that tapping upgrade generates a unique Paystack link
+    and creates a DB record.
+    """
 
     # Mock Paystack API
     mock_response = {

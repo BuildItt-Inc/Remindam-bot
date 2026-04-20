@@ -29,7 +29,7 @@ class WhatsAppService:
 
         if self.mock_mode:
             logger.warning(
-                "Twilio credentials not set. " "WhatsAppService running in mock mode."
+                "Twilio credentials not set. WhatsAppService running in mock mode."
             )
 
     def _get_client(self):

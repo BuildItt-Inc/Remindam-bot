@@ -20,8 +20,13 @@ class SubscriptionService:
         trial_end = user.trial_start_date + timedelta(days=settings.TRIAL_DAYS)
         return now <= trial_end
 
-    async def has_active_subscription(self, db: AsyncSession, user_id: UUID, plan: str | None = None) -> bool:
-        """Check if the user has an active, paid subscription, optionally for a specific plan."""
+    async def has_active_subscription(
+        self, db: AsyncSession, user_id: UUID, plan: str | None = None
+    ) -> bool:
+        """
+        Check if the user has an active, paid subscription,
+        optionally for a specific plan.
+        """
         sub = await self.get_user_subscription(db, user_id)
         if not sub:
             return False
@@ -29,7 +34,8 @@ class SubscriptionService:
 
     async def can_add_reminder(self, db: AsyncSession, user: User) -> bool:
         """
-        Check if the user is allowed to add a new reminder (Medication, Exercise, or Water).
+        Check if the user is allowed to add a new reminder
+        (Medication, Exercise, or Water).
         - Free Trial or Standard Plan: max 5 active reminders total.
         - Premium Plan: unlimited reminders.
         """
