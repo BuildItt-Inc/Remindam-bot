@@ -38,6 +38,12 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-remindam}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-remindam}
       REDIS_URL: redis://redis:6379/0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     depends_on:
       db:
         condition: service_healthy
@@ -54,13 +60,19 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-remindam}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-remindam}
       REDIS_URL: redis://redis:6379/0
       USE_NULL_POOL: "true"
+    healthcheck:
+      test: ["CMD", "uv", "run", "celery", "-A", "app.scheduler", "inspect", "ping", "--timeout", "5"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
 
-  # ── Celery Beat (Scheduler) ──
+  # ── Celery Beat ──
   beat:
     build: .
     restart: unless-stopped
@@ -69,6 +81,12 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-remindam}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-remindam}
       REDIS_URL: redis://redis:6379/0
+    healthcheck:
+      test: ["CMD-SHELL", "uv run celery -A app.scheduler inspect ping --timeout 5 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     depends_on:
       db:
         condition: service_healthy
