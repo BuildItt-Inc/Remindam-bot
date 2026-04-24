@@ -20,12 +20,15 @@ class ReminderLog(Base):
     )
     schedule_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("medication_schedules.id"),
+        ForeignKey("medication_schedules.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending"
