@@ -62,7 +62,7 @@ async def update_user(
     return await user_service.update(db, db_obj=db_user, obj_in=obj_in)
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_200_OK)
+@router.delete("/{user_id}", status_code=status.HTTP_202_ACCEPTED)
 @limiter.limit("5/minute")
 async def delete_user(
     request: Request, user_id: UUID, db: AsyncSession = Depends(get_db)

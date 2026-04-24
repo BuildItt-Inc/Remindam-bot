@@ -95,7 +95,7 @@ class IntentService:
         """Handle messages from a soft-deleted user within their 90-day window."""
         body = message_body.strip().upper()
 
-        if body == "RESTORE":
+        if body.startswith("RESTORE"):
             restored = await user_service.restore_account(db, deleted_user.id)
             if restored:
                 msg = TextMsg(
@@ -116,6 +116,11 @@ class IntentService:
             await whatsapp_service.send(
                 whatsapp_number, msg, db=db, user_id=deleted_user.id
             )
+            return
+
+        if body.startswith("SIGNUP"):
+            await user_service.hard_delete(db, deleted_user.id)
+            await self._handle_new_user(db, whatsapp_number)
             return
 
         msg = TextMsg(

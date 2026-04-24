@@ -95,8 +95,8 @@
     <p>The laws of the Federal Republic of Nigeria shall govern these terms.</p>
 
     <footer>
-        &copy;
-        <script>document.write(new Date().getFullYear())</script> Builditt. All rights reserved.
+        &copy; <span id="current-year"></span> Builditt. All rights reserved.
+        <script>document.getElementById("current-year").textContent = new Date().getFullYear();</script>
     </footer>
 </body>
 

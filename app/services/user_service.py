@@ -108,10 +108,20 @@ class UserService:
 
         user.is_active = True
         user.deleted_at = None
+        user.deletion_warning_sent_at = None
         db.add(user)
         await db.commit()
         await db.refresh(user)
         return user
+
+    async def hard_delete(self, db: AsyncSession, user_id: UUID) -> bool:
+        from sqlalchemy import delete
+
+        from app.models.user import User
+
+        result = await db.execute(delete(User).where(User.id == user_id))
+        await db.commit()
+        return result.rowcount > 0
 
 
 user_service = UserService()
