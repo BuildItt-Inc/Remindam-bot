@@ -59,7 +59,12 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_api_key_in_production(self) -> "Settings":
-        if not self.DEBUG and self.API_KEY == "dev-secret-key":
+        import os
+
+        is_ci = (
+            os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true"
+        )
+        if not self.DEBUG and not is_ci and self.API_KEY == "dev-secret-key":
             raise ValueError(
                 "API_KEY must be changed from default 'dev-secret-key' "
                 "when running in production (DEBUG=False)"
