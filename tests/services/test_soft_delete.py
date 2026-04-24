@@ -136,11 +136,8 @@ async def test_restore_after_90_days_fails(
     user = await user_service.create(db, user_in=sample_user_create)
     await user_service.soft_delete(db, user.id)
 
-    old_date = datetime.now(UTC) - timedelta(days=91)
-    await db.execute(
-        text("UPDATE users SET deleted_at = :dt WHERE id = :uid"),
-        {"dt": old_date, "uid": user.id},
-    )
+    user.deleted_at = datetime.now(UTC) - timedelta(days=91)
+    db.add(user)
     await db.commit()
 
     restored = await user_service.restore_account(db, user.id)
@@ -252,10 +249,8 @@ async def test_deletion_warning_targets_correct_window(
     await user_service.soft_delete(db, user.id)
 
     target_date = datetime.now(UTC) - timedelta(days=83, hours=12)
-    await db.execute(
-        text("UPDATE users SET deleted_at = :dt WHERE id = :uid"),
-        {"dt": target_date, "uid": user.id},
-    )
+    user.deleted_at = target_date
+    db.add(user)
     await db.commit()
 
     now = datetime.now(UTC)
@@ -264,8 +259,8 @@ async def test_deletion_warning_targets_correct_window(
 
     query = select(User).where(
         User.deleted_at.is_not(None),
-        User.deleted_at >= window_end,
-        User.deleted_at < window_start,
+        User.deleted_at >= window_start,
+        User.deleted_at < window_end,
     )
     result = await db.execute(query)
     users_to_notify = result.scalars().all()

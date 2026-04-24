@@ -325,8 +325,8 @@ def notify_pending_deletion_task():
                 .options(selectinload(User.profile))
                 .where(
                     User.deleted_at.is_not(None),
-                    User.deleted_at >= window_end,
-                    User.deleted_at < window_start,
+                    User.deleted_at >= window_start,
+                    User.deleted_at < window_end,
                 )
             )
             result = await db.execute(query)
