@@ -215,6 +215,9 @@ class WhatsAppService:
                     await db.commit()
             except Exception as e:
                 logger.error("Failed to log message to DB: %s", e)
+                if not commit:
+                    await db.rollback()
+                    raise
 
 
 whatsapp_service = WhatsAppService()

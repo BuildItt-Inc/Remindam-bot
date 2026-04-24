@@ -19,6 +19,8 @@ RUN uv sync --frozen --no-dev --no-install-project
 # Create non-root user
 RUN groupadd -r app && useradd -r -g app app
 
+ENV HOME=/app
+
 # Copy application code
 COPY . .
 

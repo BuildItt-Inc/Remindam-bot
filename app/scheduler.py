@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import threading
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -59,8 +60,7 @@ def run_async(coro):
     connection pool cleanup issues that occur when asyncio.run() constantly
     creates and destroys loops across sequential task executions.
     """
-    loop = getattr(_loop_local, "loop", None)
-    if loop is None or loop.is_closed():
+    if not hasattr(_loop_local, "loop") or _loop_local.loop.is_closed():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         _loop_local.loop = loop
@@ -105,7 +105,7 @@ def generate_future_reminders_task():
             await db.commit()
             logger.info("Successfully generated future reminders.")
 
-    run_async(generate())
+    return run_async(generate())
 
 
 @celery_app.task(name="app.scheduler.send_whatsapp_task")
@@ -258,98 +258,107 @@ def send_whatsapp_task(reminder_log_id: str):
                 )
                 logger.error(f"Failed to send WhatsApp for reminder {reminder_log_id}")
 
-    run_async(process_reminder())
+    return run_async(process_reminder())
+
+
+@asynccontextmanager
+async def get_session(db=None):
+    if db is not None:
+        yield db
+    else:
+        async with async_session() as session:
+            yield session
+
+
+async def perform_cleanup(db_session=None):
+    from sqlalchemy import delete, select
+
+    from app.models.user import User
+
+    cutoff = datetime.now(UTC) - timedelta(days=90)
+
+    async with get_session(db_session) as db:
+        query = select(User).where(
+            User.deleted_at.is_not(None),
+            User.deleted_at <= cutoff,
+        )
+        result = await db.execute(query)
+        expired_users = result.scalars().all()
+
+        if not expired_users:
+            logger.info("No expired soft-deleted users to clean up.")
+            return
+
+        expired_ids = [u.id for u in expired_users]
+        logger.info("Found %d expired soft-deleted users to purge.", len(expired_ids))
+
+        await db.execute(delete(User).where(User.id.in_(expired_ids)))
+        await db.commit()
+        logger.info("Successfully purged %d soft-deleted users.", len(expired_ids))
 
 
 @celery_app.task(name="app.scheduler.cleanup_deleted_users_task")
 def cleanup_deleted_users_task():
     """Hard-delete users whose soft-delete grace period (90 days) has expired."""
     logger.info("Running daily cleanup of expired soft-deleted users...")
+    run_async(perform_cleanup())
 
-    async def cleanup():
-        from sqlalchemy import delete, select
 
-        from app.models.user import User
+async def perform_notification(db_session=None):
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
 
-        cutoff = datetime.now(UTC) - timedelta(days=90)
+    from app.models.user import User
+    from app.services.message_types import TextMsg
+    from app.services.whatsapp_service import whatsapp_service
 
-        async with async_session() as db:
-            query = select(User).where(
+    now = datetime.now(UTC)
+    window_start = now - timedelta(days=90)
+    window_end = now - timedelta(days=83)
+
+    async with get_session(db_session) as db:
+        query = (
+            select(User)
+            .options(selectinload(User.profile))
+            .where(
                 User.deleted_at.is_not(None),
-                User.deleted_at <= cutoff,
+                User.deleted_at >= window_start,
+                User.deleted_at < window_end,
+                User.deletion_warning_sent_at.is_(None),
             )
-            result = await db.execute(query)
-            expired_users = result.scalars().all()
+        )
+        result = await db.execute(query)
+        users_to_notify = result.scalars().all()
 
-            if not expired_users:
-                logger.info("No expired soft-deleted users to clean up.")
-                return
+        if not users_to_notify:
+            logger.info("No users approaching permanent deletion.")
+            return
 
-            expired_ids = [u.id for u in expired_users]
-            logger.info(
-                "Found %d expired soft-deleted users to purge.", len(expired_ids)
+        logger.info("Sending deletion warnings to %d users.", len(users_to_notify))
+        for user in users_to_notify:
+            if not user.profile:
+                continue
+            msg = TextMsg(
+                body=(
+                    "⚠️ Your account will be permanently deleted in 7 days. "
+                    "Reply RESTORE to reactivate your account."
+                )
             )
+            await whatsapp_service.send(
+                user.profile.whatsapp_number,
+                msg,
+                db=db,
+                user_id=user.id,
+                commit=False,
+            )
+            user.deletion_warning_sent_at = now
 
-            await db.execute(delete(User).where(User.id.in_(expired_ids)))
-            await db.commit()
-            logger.info("Successfully purged %d soft-deleted users.", len(expired_ids))
-
-    run_async(cleanup())
+        await db.commit()
+        logger.info("Sent %d deletion warning messages.", len(users_to_notify))
 
 
 @celery_app.task(name="app.scheduler.notify_pending_deletion_task")
 def notify_pending_deletion_task():
     """Warn users 7 days before their data is permanently deleted."""
     logger.info("Running daily pending-deletion notification check...")
-
-    async def notify():
-        from sqlalchemy import select
-        from sqlalchemy.orm import selectinload
-
-        from app.models.user import User
-        from app.services.message_types import TextMsg
-        from app.services.whatsapp_service import whatsapp_service
-
-        now = datetime.now(UTC)
-        window_start = now - timedelta(days=84)
-        window_end = now - timedelta(days=83)
-
-        async with async_session() as db:
-            query = (
-                select(User)
-                .options(selectinload(User.profile))
-                .where(
-                    User.deleted_at.is_not(None),
-                    User.deleted_at >= window_start,
-                    User.deleted_at < window_end,
-                )
-            )
-            result = await db.execute(query)
-            users_to_notify = result.scalars().all()
-
-            if not users_to_notify:
-                logger.info("No users approaching permanent deletion.")
-                return
-
-            logger.info("Sending deletion warnings to %d users.", len(users_to_notify))
-            for user in users_to_notify:
-                if not user.profile:
-                    continue
-                msg = TextMsg(
-                    body=(
-                        "⚠️ Your account will be permanently deleted in 7 days. "
-                        "Reply RESTORE to reactivate your account."
-                    )
-                )
-                await whatsapp_service.send(
-                    user.profile.whatsapp_number,
-                    msg,
-                    db=db,
-                    user_id=user.id,
-                    commit=False,
-                )
-
-            await db.commit()
-            logger.info("Sent %d deletion warning messages.", len(users_to_notify))
-
-    run_async(notify())
+    run_async(perform_notification())

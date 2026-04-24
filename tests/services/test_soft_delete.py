@@ -2,10 +2,9 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import User
 from app.schemas.user import UserCreate, UserProfileCreate
 from app.services.user_service import user_service
 
@@ -149,31 +148,18 @@ async def test_restore_after_90_days_fails(
 async def test_cleanup_deletes_expired_users(
     db: AsyncSession, sample_user_create: UserCreate
 ):
-    """Cleanup task must hard-delete users whose deleted_at is >90 days ago."""
-    from sqlalchemy import delete as sa_delete
+    from app.scheduler import perform_cleanup
 
     user = await user_service.create(db, user_in=sample_user_create)
     await user_service.soft_delete(db, user.id)
 
-    old_date = datetime.now(UTC) - timedelta(days=91)
-    await db.execute(
-        text("UPDATE users SET deleted_at = :dt WHERE id = :uid"),
-        {"dt": old_date, "uid": user.id},
-    )
+    user.deleted_at = datetime.now(UTC) - timedelta(days=91)
+    db.add(user)
     await db.commit()
 
-    cutoff = datetime.now(UTC) - timedelta(days=90)
-    query = select(User).where(
-        User.deleted_at.is_not(None),
-        User.deleted_at <= cutoff,
-    )
-    result = await db.execute(query)
-    expired = result.scalars().all()
-    assert len(expired) == 1
+    await perform_cleanup(db)
 
-    await db.execute(sa_delete(User).where(User.id.in_([u.id for u in expired])))
-    await db.commit()
-
+    db.expire_all()
     assert await user_service.get_by_id(db, user.id, include_deleted=True) is None
 
 
@@ -181,24 +167,23 @@ async def test_cleanup_deletes_expired_users(
 
 
 @pytest.mark.asyncio
-async def test_cleanup_idempotent(db: AsyncSession):
-    """Running cleanup twice when no expired users exist must not error."""
-    from sqlalchemy import delete as sa_delete
+async def test_cleanup_idempotent(db: AsyncSession, sample_user_create: UserCreate):
+    from app.scheduler import perform_cleanup
 
-    cutoff = datetime.now(UTC) - timedelta(days=90)
-    query = select(User).where(
-        User.deleted_at.is_not(None),
-        User.deleted_at <= cutoff,
-    )
-    result = await db.execute(query)
-    expired = result.scalars().all()
+    user = await user_service.create(db, user_in=sample_user_create)
+    await user_service.soft_delete(db, user.id)
 
-    if expired:
-        await db.execute(sa_delete(User).where(User.id.in_([u.id for u in expired])))
-        await db.commit()
+    user.deleted_at = datetime.now(UTC) - timedelta(days=91)
+    db.add(user)
+    await db.commit()
 
-    result2 = await db.execute(query)
-    assert len(result2.scalars().all()) == 0
+    await perform_cleanup(db)
+
+    db.expire_all()
+    assert await user_service.get_by_id(db, user.id, include_deleted=True) is None
+
+    # Should safely no-op
+    await perform_cleanup(db)
 
 
 # ── 8. Payment logs are nullified, not deleted ──
@@ -242,25 +227,18 @@ async def test_payment_logs_nullified_after_hard_delete(
 async def test_deletion_warning_targets_correct_window(
     db: AsyncSession, sample_user_create: UserCreate
 ):
-    """The notification query must only find users deleted 83-84 days ago."""
+    from app.scheduler import perform_notification
+
     user = await user_service.create(db, user_in=sample_user_create)
     await user_service.soft_delete(db, user.id)
 
-    target_date = datetime.now(UTC) - timedelta(days=83, hours=12)
+    target_date = datetime.now(UTC) - timedelta(days=85, hours=12)
     user.deleted_at = target_date
     db.add(user)
     await db.commit()
 
-    now = datetime.now(UTC)
-    window_start = now - timedelta(days=84)
-    window_end = now - timedelta(days=83)
+    await perform_notification(db)
 
-    query = select(User).where(
-        User.deleted_at.is_not(None),
-        User.deleted_at >= window_start,
-        User.deleted_at < window_end,
-    )
-    result = await db.execute(query)
-    users_to_notify = result.scalars().all()
-    assert len(users_to_notify) == 1
-    assert users_to_notify[0].id == user.id
+    db.expire_all()
+    await db.refresh(user)
+    assert user.deletion_warning_sent_at is not None

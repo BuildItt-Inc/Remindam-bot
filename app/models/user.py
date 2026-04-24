@@ -31,6 +31,9 @@ class User(Base):
     deleted_at: Mapped[DateTime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None
     )
+    deletion_warning_sent_at: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
     profile: Mapped["UserProfile"] = relationship(
         back_populates="user", uselist=False, cascade="all, delete-orphan"
