@@ -58,6 +58,7 @@ class WhatsAppService:
         db: AsyncSession | None = None,
         user_id: UUID | None = None,
         reminder_log_id: UUID | None = None,
+        commit: bool = True,
     ) -> str | None:
         """Send a structured message.
 
@@ -77,6 +78,7 @@ class WhatsAppService:
                 db=db,
                 user_id=user_id,
                 reminder_log_id=reminder_log_id,
+                commit=commit,
             )
 
         # Fallback: send plain text
@@ -87,6 +89,7 @@ class WhatsAppService:
             db=db,
             user_id=user_id,
             reminder_log_id=reminder_log_id,
+            commit=commit,
         )
 
     async def _send_template(
@@ -98,6 +101,7 @@ class WhatsAppService:
         db: AsyncSession | None = None,
         user_id: UUID | None = None,
         reminder_log_id: UUID | None = None,
+        commit: bool = True,
     ) -> str | None:
         """Send a message using a Twilio Content Template (native buttons/lists)."""
         msg_id = None
@@ -144,7 +148,7 @@ class WhatsAppService:
                 content_variables,
             )
 
-        await self._log(db, user_id, reminder_log_id, msg_id, status)
+        await self._log(db, user_id, reminder_log_id, msg_id, status, commit=commit)
         return msg_id
 
     async def _send_text(
@@ -156,6 +160,7 @@ class WhatsAppService:
         db: AsyncSession | None = None,
         user_id: UUID | None = None,
         reminder_log_id: UUID | None = None,
+        commit: bool = True,
     ) -> str | None:
         """Send a plain text message (or media) via Twilio."""
         msg_id = None
@@ -188,11 +193,11 @@ class WhatsAppService:
             status = "sent"
             logger.info(
                 "[MOCK WHATSAPP] To: %s | Message: %s",
-                to_number,
+                mask_phone_number(to_number),
                 message[:80],
             )
 
-        await self._log(db, user_id, reminder_log_id, msg_id, status)
+        await self._log(db, user_id, reminder_log_id, msg_id, status, commit=commit)
         return msg_id
 
     # ── Helpers ──
@@ -204,6 +209,7 @@ class WhatsAppService:
         reminder_log_id: UUID | None,
         msg_id: str | None,
         status: str,
+        commit: bool = True,
     ):
         """Store message metadata (no content) for delivery tracking."""
         if db and user_id:
@@ -216,7 +222,8 @@ class WhatsAppService:
                     direction="outbound",
                 )
                 db.add(log_entry)
-                await db.commit()
+                if commit:
+                    await db.commit()
             except Exception as e:
                 logger.error("Failed to log message to DB: %s", e)
 

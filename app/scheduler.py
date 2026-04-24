@@ -347,9 +347,14 @@ def notify_pending_deletion_task():
                     )
                 )
                 await whatsapp_service.send(
-                    user.profile.whatsapp_number, msg, db=db, user_id=user.id
+                    user.profile.whatsapp_number,
+                    msg,
+                    db=db,
+                    user_id=user.id,
+                    commit=False,
                 )
 
+            await db.commit()
             logger.info("Sent %d deletion warning messages.", len(users_to_notify))
 
     run_async(notify())

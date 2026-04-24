@@ -130,7 +130,9 @@ class IntentService:
                         "Reply SIGNUP to create a new account."
                     )
                 )
-            await whatsapp_service.send(whatsapp_number, msg)
+            await whatsapp_service.send(
+                whatsapp_number, msg, db=db, user_id=deleted_user.id
+            )
             return
 
         msg = TextMsg(
@@ -140,7 +142,9 @@ class IntentService:
                 "or *SIGNUP* to create a new one."
             )
         )
-        await whatsapp_service.send(whatsapp_number, msg)
+        await whatsapp_service.send(
+            whatsapp_number, msg, db=db, user_id=deleted_user.id
+        )
 
     async def _handle_new_user(self, db: AsyncSession, whatsapp_number: str) -> None:
         """Create user and send T&C before welcome + main menu."""
