@@ -61,10 +61,9 @@ def run_async(coro):
     creates and destroys loops across sequential task executions.
     """
     if not hasattr(_loop_local, "loop") or _loop_local.loop.is_closed():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        _loop_local.loop = loop
-    return loop.run_until_complete(coro)
+        _loop_local.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(_loop_local.loop)
+    return _loop_local.loop.run_until_complete(coro)
 
 
 @celery_app.task(name="app.scheduler.check_for_due_reminders")
