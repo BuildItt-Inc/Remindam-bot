@@ -1,11 +1,3 @@
-"""WhatsApp messaging via Twilio.
-
-Supports sending messages via Twilio Content API (native buttons/lists)
-with fallback to plain text when no content_sid is available.
-
-Falls back to mock mode when Twilio credentials are not set.
-"""
-
 import json
 import logging
 from uuid import UUID

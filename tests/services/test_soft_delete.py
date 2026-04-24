@@ -1,5 +1,3 @@
-"""Tests for the soft-delete and 90-day data retention system."""
-
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 

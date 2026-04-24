@@ -1,15 +1,3 @@
-"""Twilio WhatsApp webhook.
-
-Receives incoming messages from Twilio and routes them
-to the intent/flow engine. Responses are sent back
-via Twilio REST API — the webhook just returns empty TwiML.
-
-Handles three types of user input from Content Templates:
-- ButtonPayload: sent when user taps a Quick Reply button
-- ListId: sent when user selects a List Picker item
-- Body: plain text typed by the user (or fallback)
-"""
-
 import logging
 
 from fastapi import APIRouter, Depends, Header, Request, Response, status

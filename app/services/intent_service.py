@@ -1,12 +1,3 @@
-"""Thin router: incoming message → flow engine → send response.
-
-1. Identifies the user (or creates a new one)
-2. Loads conversational state from Redis
-3. Delegates to FlowService for the interaction logic
-4. Sends the structured response via WhatsAppService
-5. Persists the new state back to Redis
-"""
-
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession

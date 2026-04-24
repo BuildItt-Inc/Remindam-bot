@@ -1,11 +1,3 @@
-"""Structured WhatsApp message types.
-
-These are provider-agnostic message structures:
-- TextMsg  → plain text
-- ButtonMsg → up to 3 quick-reply options (native buttons via Twilio Content API)
-- ListMsg   → scrollable menu with sections (native list via Twilio Content API)
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field

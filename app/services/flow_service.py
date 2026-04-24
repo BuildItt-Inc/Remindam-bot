@@ -1,12 +1,3 @@
-"""Interactive WhatsApp flow engine.
-
-Messages use Twilio Content Templates for native buttons/lists.
-Free-text input is needed for:
-- Medication name
-- Dosage
-- Reminder time
-"""
-
 import logging
 from datetime import time as dt_time
 

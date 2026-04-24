@@ -1,11 +1,3 @@
-"""Generates user-friendly adherence reports in two formats:
-
-1. **WhatsApp message** — a nicely formatted text summary using WhatsApp
-   bold/italic markup that can be sent directly to the user.
-2. **PDF file** — a downloadable report the user can save/share,
-   sent as a WhatsApp document attachment.
-"""
-
 import os
 import uuid
 from datetime import datetime

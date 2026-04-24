@@ -1,5 +1,3 @@
-"""Tests for the Twilio-based WhatsApp service."""
-
 import logging
 from unittest.mock import MagicMock, patch
 
