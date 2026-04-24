@@ -61,3 +61,19 @@ async def update_user(
             detail="User not found",
         )
     return await user_service.update(db, db_obj=db_user, obj_in=obj_in)
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
+async def delete_user(
+    request: Request, user_id: UUID, db: AsyncSession = Depends(get_db)
+):
+    """Soft-delete a user account, scheduling it for permanent removal in 90 days."""
+    db_user = await user_service.get_by_id(db, user_id=user_id)
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    await user_service.soft_delete(db, user_id=user_id)
+    return {"message": "Account scheduled for deletion"}
