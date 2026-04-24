@@ -16,11 +16,20 @@ COPY pyproject.toml uv.lock ./
 # Install production dependencies only
 RUN uv sync --frozen --no-dev --no-install-project
 
+# Create non-root user
+RUN groupadd -r app && useradd -r -g app app
+
 # Copy application code
 COPY . .
 
+# Change ownership of the app directory
+RUN chown -R app:app /app
+
 # Install the project itself
 RUN uv sync --frozen --no-dev
+
+# Switch to the non-root user
+USER app
 
 EXPOSE 8000
 

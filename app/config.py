@@ -1,4 +1,4 @@
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -56,6 +56,15 @@ class Settings(BaseSettings):
     BASE_URL: str = "https://yourdomain.com"
 
     model_config = {"env_file": ".env", "extra": "ignore"}
+
+    @model_validator(mode="after")
+    def validate_api_key_in_production(self) -> "Settings":
+        if not self.DEBUG and self.API_KEY == "dev-secret-key":
+            raise ValueError(
+                "API_KEY must be changed from default 'dev-secret-key' "
+                "when running in production (DEBUG=False)"
+            )
+        return self
 
 
 settings = Settings()

@@ -19,6 +19,16 @@ from app.services.message_types import Msg
 logger = logging.getLogger(__name__)
 
 
+def mask_phone_number(number: str) -> str:
+    """Mask a phone number for safe logging (e.g., +234****6789)."""
+    if not number:
+        return "UNKNOWN"
+    # Keep country code prefix (assumed up to 4 chars like +234) and last 4
+    if len(number) <= 8:
+        return "****"
+    return f"{number[:4]}****{number[-4:]}"
+
+
 class WhatsAppService:
     def __init__(self):
         self.account_sid = settings.TWILIO_ACCOUNT_SID
@@ -114,15 +124,14 @@ class WhatsAppService:
                 msg_id = twilio_msg.sid
                 status = "sent"
                 logger.info(
-                    "Sent WhatsApp template %s to %s, sid: %s",
-                    content_sid,
-                    to_number,
+                    "Sent WhatsApp template to %s, sid: %s",
+                    mask_phone_number(to_number),
                     msg_id,
                 )
             except Exception as e:
                 logger.error(
                     "Failed to send WhatsApp template to %s: %s",
-                    to_number,
+                    mask_phone_number(to_number),
                     e,
                 )
         else:
@@ -130,7 +139,7 @@ class WhatsAppService:
             status = "sent"
             logger.info(
                 "[MOCK WHATSAPP] To: %s | Template: %s | Vars: %s",
-                to_number,
+                mask_phone_number(to_number),
                 content_sid,
                 content_variables,
             )
@@ -166,11 +175,12 @@ class WhatsAppService:
                 twilio_msg = client.messages.create(**kwargs)
                 msg_id = twilio_msg.sid
                 status = "sent"
-                logger.info("Sent WhatsApp text to %s, sid: %s", to_number, msg_id)
+                masked_to = mask_phone_number(to_number)
+                logger.info("Sent WhatsApp text to %s, sid: %s", masked_to, msg_id)
             except Exception as e:
                 logger.error(
                     "Failed to send WhatsApp message to %s: %s",
-                    to_number,
+                    mask_phone_number(to_number),
                     e,
                 )
         else:
