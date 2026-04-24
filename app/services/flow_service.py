@@ -271,7 +271,6 @@ class FlowService:
         self, db: AsyncSession, user: User, target_plan: str
     ) -> Msg:
         """Generate a dynamic upgrade message with a unique Paystack link."""
-        # Placeholder email for Paystack (requires an email)
         email = f"{user.profile.whatsapp_number.replace('+', '')}@remindam.com"
 
         amount = settings.SUBSCRIPTION_AMOUNT_PREMIUM_KOBO
@@ -332,7 +331,6 @@ class FlowService:
             next_state: New state (None = clear/idle)
             state_data: Data to persist for the next step
         """
-        # Global: go back to menu (not allowed during T&C acceptance)
         if (
             body in ("go_menu", "menu", "0", "back", "cancel")
             and state != "terms_accept"
@@ -342,7 +340,6 @@ class FlowService:
             is_standard = sub.plan == "standard" if sub else False
             return main_menu(is_premium=is_premium, is_standard=is_standard), None, None
 
-        # Global: Interactive Reminder Actions
         if body.startswith("take_"):
             return await self._handle_taken(db, user, body)
         if body.startswith("snooze_"):
@@ -371,7 +368,6 @@ class FlowService:
             user.terms_accepted_at = datetime.now(UTC)
             await db.commit()
 
-            # Send welcome message
             welcome = TextMsg(
                 body=(
                     "👋 *Welcome to Remindam!*\n\n"
@@ -402,7 +398,6 @@ class FlowService:
                 None,
             )
 
-        # User declined or sent something else — re-prompt
         return (
             ButtonMsg(
                 body=(
@@ -646,7 +641,6 @@ class FlowService:
         if body == "back":
             return MEDICATION_FORM_MENU, "med_form", {"name": data.get("name", "")}
 
-        # Validate numeric dosage — cap at 10 for tablets/capsules
         dosage_text = body.strip()
         form_val = data.get("form", "")
         if form_val in ("tablet", "capsule"):
@@ -996,7 +990,6 @@ class FlowService:
 
         hours_gap, label = interval_info
 
-        # Generate schedules every N hours from 7am to 9pm
         schedules = []
         hour = 7
         while hour <= 21:
@@ -1187,14 +1180,12 @@ class FlowService:
         if not med or med.user_id != user.id or not med.is_active:
             return await self._start_delete_flow(db, user)
 
-        # Soft delete the medication and its schedules
         med.is_active = False
         schedule_ids = []
         for s in med.schedules:
             s.is_active = False
             schedule_ids.append(s.id)
 
-        # Also clean up pending ReminderLogs
         if schedule_ids:
             from sqlalchemy import update
 
@@ -1240,7 +1231,6 @@ class FlowService:
         except Exception:
             return TextMsg(body="❌ Invalid reminder reference."), "idle", None
 
-        # Load reminder with medication info for the message
         query = (
             select(ReminderLog)
             .options(
@@ -1268,7 +1258,6 @@ class FlowService:
                 None,
             )
 
-        # Update status
         reminder.status = "taken"
         reminder.responded_at = datetime.now(UTC)
         await db.commit()
@@ -1320,7 +1309,6 @@ class FlowService:
         if not reminder:
             return TextMsg(body="❌ Reminder not found."), "idle", None
 
-        # Reschedule for 3 minutes from now
         reminder.status = "pending"
         reminder.scheduled_for = datetime.now(UTC) + timedelta(minutes=3)
         await db.commit()
@@ -1368,7 +1356,6 @@ class FlowService:
                 None,
             )
 
-        # Update status
         reminder.status = "missed"
         reminder.responded_at = datetime.now(UTC)
         await db.commit()
@@ -1577,7 +1564,6 @@ class FlowService:
                 None,
             )
 
-        # Update the profile
         user.profile.first_name = name
         await db.commit()
 
@@ -1604,7 +1590,6 @@ def _is_valid_custom_text(text: str) -> bool:
 
     if not text or len(text) < 2 or len(text) > 40:
         return False
-    # Must contain at least one letter (prevents entering just numbers or symbols)
     if not re.search(r"[a-zA-Z]", text):
         return False
     return True
@@ -1616,14 +1601,12 @@ def _parse_time(text: str) -> dt_time | None:
 
     text = text.strip().lower().replace(".", ":")
 
-    # Format 1: 24-hour e.g. "14:30" or "09:44"
     match = re.match(r"^(\d{1,2}):(\d{2})$", text)
     if match:
         h, m = int(match.group(1)), int(match.group(2))
         if 0 <= h <= 23 and 0 <= m <= 59:
             return dt_time(h, m)
 
-    # Format 2: 12-hour with minutes e.g. "9:44pm", "09:44 am"
     match = re.match(r"^(\d{1,2}):(\d{2})\s*(am|pm)$", text)
     if match:
         h, m = int(match.group(1)), int(match.group(2))
@@ -1635,7 +1618,6 @@ def _parse_time(text: str) -> dt_time | None:
         if 0 <= h <= 23 and 0 <= m <= 59:
             return dt_time(h, m)
 
-    # Format 3: 12-hour without minutes e.g. "9pm", "9 am"
     match = re.match(r"^(\d{1,2})\s*(am|pm)$", text)
     if match:
         h = int(match.group(1))

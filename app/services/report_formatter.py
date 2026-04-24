@@ -54,7 +54,6 @@ def format_whatsapp_report(
     """
     bar = _progress_bar(adherence_percentage)
 
-    # Header
     lines = [
         f"📊 *{report_type.capitalize()} Adherence Report*",
         f"_{period_start.strftime('%b %d')} – {period_end.strftime('%b %d, %Y')}_",
@@ -68,7 +67,6 @@ def format_whatsapp_report(
         f"❌ Missed: *{missed_count}* / {total_reminders}",
     ]
 
-    # Per-item breakdown grouped by type
     if medication_breakdown:
         _icons = {
             "medication": "💊",
@@ -80,7 +78,6 @@ def format_whatsapp_report(
             "exercise": "Exercise",
             "water_intake": "Water Intake",
         }
-        # Group items by type
         by_type: dict[str, list] = {}
         for med in medication_breakdown:
             t = med.get("item_type", "medication")
@@ -100,7 +97,6 @@ def format_whatsapp_report(
                     f"{med.get('adherence', 0):.0f}% {med_bar}"
                 )
 
-    # Footer
     if adherence_percentage >= 90:
         emoji = "🏆"
         message = "Excellent consistency! Keep it up!"
@@ -149,7 +145,6 @@ def generate_pdf_report(
 
     styles = getSampleStyleSheet()
 
-    # Custom styles
     title_style = ParagraphStyle(
         "ReportTitle",
         parent=styles["Title"],

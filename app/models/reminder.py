@@ -43,7 +43,6 @@ class ReminderLog(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    # Relationships
     schedule: Mapped["MedicationSchedule"] = relationship(
         back_populates="reminder_logs"
     )

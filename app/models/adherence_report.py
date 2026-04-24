@@ -44,7 +44,6 @@ class AdherenceReport(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    # Relationships
     user: Mapped["User"] = relationship(back_populates="adherence_reports")
 
     def __repr__(self) -> str:

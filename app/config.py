@@ -17,13 +17,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # Twilio (WhatsApp)
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_WHATSAPP_NUMBER: str = ""
     TWILIO_MESSAGING_SERVICE_SID: str = ""
 
-    # Twilio Content Template SIDs
     CT_REMINDER_MEDICATION: str = ""
     CT_REMINDER_EXERCISE: str = ""
     CT_REMINDER_WATER: str = ""

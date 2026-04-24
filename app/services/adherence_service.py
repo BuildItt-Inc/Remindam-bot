@@ -163,7 +163,6 @@ class AdherenceService:
         period_end: datetime,
     ) -> list[dict]:
         """Get per-medication adherence stats for the period."""
-        # Fetch all relevant reminder logs with medication info
         query = (
             select(ReminderLog)
             .options(
@@ -181,7 +180,6 @@ class AdherenceService:
         result = await db.execute(query)
         logs = result.scalars().all()
 
-        # Group by item (medication, exercise, or water intake)
         med_stats: dict[str, dict] = {}
         for log in logs:
             med = log.schedule.medication
@@ -205,7 +203,6 @@ class AdherenceService:
             elif log.status == "missed":
                 med_stats[key]["missed"] += 1
 
-        # Calculate per-medication adherence
         breakdown = []
         for stats in med_stats.values():
             adherence = (
@@ -213,7 +210,6 @@ class AdherenceService:
             )
             breakdown.append({**stats, "adherence": round(adherence, 1)})
 
-        # Sort by adherence (lowest first so user sees problem areas)
         breakdown.sort(key=lambda x: x["adherence"])
         return breakdown
 

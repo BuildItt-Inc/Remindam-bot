@@ -32,7 +32,6 @@ class User(Base):
         DateTime(timezone=True), nullable=True, default=None
     )
 
-    # Relationships
     profile: Mapped["UserProfile"] = relationship(
         back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
@@ -76,7 +75,6 @@ class UserProfile(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    # Relationships
     user: Mapped["User"] = relationship(back_populates="profile")
 
     def __repr__(self) -> str:

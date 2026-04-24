@@ -36,11 +36,9 @@ class IntentService:
         message_body: str,
     ) -> None:
         """Process incoming message and send the response."""
-        # 1. Find active user
         user = await user_service.get_by_whatsapp_number(db, whatsapp_number)
 
         if not user:
-            # Check if this is a soft-deleted user
             deleted_user = await user_service.get_by_whatsapp_number(
                 db, whatsapp_number, include_deleted=True
             )
@@ -53,7 +51,6 @@ class IntentService:
                 await self._handle_new_user(db, whatsapp_number)
             return
 
-        # 2. Load state from Redis
         try:
             state_svc = _get_state_service()
             state_info = await state_svc.get_state(whatsapp_number)
@@ -64,22 +61,18 @@ class IntentService:
         state = state_info.get("state", "idle")
         data = state_info.get("data", {})
 
-        # Content API sends button IDs directly (no more numbered mapping needed)
         body = message_body.strip()
 
-        # Map static template button IDs to dynamic ones using the stored reminder ID
         if body in ("take_action", "snooze_action", "skip_action"):
             last_reminder_id = data.get("_last_reminder_id")
             if last_reminder_id:
                 action_type = body.split("_")[0]  # 'take', 'snooze', 'skip'
                 body = f"{action_type}_{last_reminder_id}"
 
-        # 3. Run flow engine
         response_msg, next_state, state_data = await flow_service.handle(
             db, user, state, data, body
         )
 
-        # 4. Send the response
         await whatsapp_service.send(
             whatsapp_number,
             response_msg,
@@ -87,7 +80,6 @@ class IntentService:
             user_id=user.id,
         )
 
-        # 5. Persist new state
         try:
             state_svc = _get_state_service()
             if next_state is None:
@@ -160,7 +152,6 @@ class IntentService:
         )
         new_user = await user_service.create(db, user_in=user_in)
 
-        # Send Terms & Conditions using Content Template
         tc_msg = ButtonMsg(
             body=(
                 "⚖️ *Medical Disclaimer & Consent*\n\n"
@@ -185,7 +176,6 @@ class IntentService:
         )
         await whatsapp_service.send(whatsapp_number, tc_msg, db=db, user_id=new_user.id)
 
-        # Set state to await T&C acceptance
         try:
             state_svc = _get_state_service()
             await state_svc.set_state(whatsapp_number, "terms_accept", {})

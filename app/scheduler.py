@@ -16,14 +16,12 @@ from app.services.whatsapp_service import whatsapp_service
 
 logger = logging.getLogger(__name__)
 
-# Initialize Celery
 celery_app = Celery(
     "remindam",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
 )
 
-# Optional configuration
 celery_app.conf.update(
     task_serializer="json",
     accept_content=["json"],
@@ -200,7 +198,6 @@ def send_whatsapp_task(reminder_log_id: str):
                 )
 
             else:
-                # Default: medication
                 dosage_val = ""
                 if med.dosage_amount:
                     amount_str = f"{med.dosage_amount:g}"
@@ -236,8 +233,6 @@ def send_whatsapp_task(reminder_log_id: str):
                 reminder_log_id=reminder.id,
             )
 
-            # Store last reminder ID so the flow engine can map
-            # template button IDs (take_action) → take_{uuid}
             if msg_id:
                 try:
                     from app.services.state_service import state_service

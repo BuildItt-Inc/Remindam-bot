@@ -40,7 +40,6 @@ class Payment(Base):
     )
     completed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
 
-    # Relationships
     user: Mapped["User"] = relationship(back_populates="payments")
     subscription: Mapped["Subscription | None"] = relationship(
         back_populates="payments"

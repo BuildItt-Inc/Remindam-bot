@@ -69,5 +69,4 @@ class ListMsg:
     content_variables: dict = field(default_factory=dict)
 
 
-# Union type for all message kinds
 Msg = TextMsg | ButtonMsg | ListMsg

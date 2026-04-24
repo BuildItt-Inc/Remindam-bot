@@ -99,7 +99,6 @@ class Medication(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    # Relationships
     user: Mapped["User"] = relationship(back_populates="medications")
     schedules: Mapped[list["MedicationSchedule"]] = relationship(
         back_populates="medication"
@@ -134,7 +133,6 @@ class MedicationSchedule(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    # Relationships
     medication: Mapped["Medication"] = relationship(back_populates="schedules")
     reminder_logs: Mapped[list["ReminderLog"]] = relationship(back_populates="schedule")
 

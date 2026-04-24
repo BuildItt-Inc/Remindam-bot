@@ -39,7 +39,6 @@ class Subscription(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    # Relationships
     user: Mapped["User"] = relationship(back_populates="subscriptions")
     payments: Mapped[list["Payment"]] = relationship(back_populates="subscription")
 

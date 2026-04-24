@@ -23,7 +23,6 @@ def mask_phone_number(number: str) -> str:
     """Mask a phone number for safe logging (e.g., +234****6789)."""
     if not number:
         return "UNKNOWN"
-    # Keep country code prefix (assumed up to 4 chars like +234) and last 4
     if len(number) <= 8:
         return "****"
     return f"{number[:4]}****{number[-4:]}"
@@ -81,7 +80,6 @@ class WhatsAppService:
                 commit=commit,
             )
 
-        # Fallback: send plain text
         text = msg.body
         return await self._send_text(
             to_number,
@@ -118,7 +116,6 @@ class WhatsAppService:
                 if content_variables:
                     kwargs["content_variables"] = json.dumps(content_variables)
 
-                # Use messaging_service_sid for production, from_ for sandbox
                 if self.messaging_service_sid:
                     kwargs["messaging_service_sid"] = self.messaging_service_sid
                 else:

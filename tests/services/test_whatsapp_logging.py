@@ -23,7 +23,6 @@ async def logging_user(db: AsyncSession):
 async def test_whatsapp_logging_to_db(db: AsyncSession, logging_user):
     """Test that send_message correctly logs metadata to
     the database when a db session is provided."""
-    # Force mock mode for this test
     original_mock_mode = whatsapp_service.mock_mode
     whatsapp_service.mock_mode = True
 
@@ -38,7 +37,6 @@ async def test_whatsapp_logging_to_db(db: AsyncSession, logging_user):
         assert sid is not None
         assert sid.startswith("MOCK_")
 
-        # Verify log exists in DB
         query = select(MessageLog).where(MessageLog.user_id == logging_user.id)
         result = await db.execute(query)
         log = result.scalars().first()
@@ -47,7 +45,6 @@ async def test_whatsapp_logging_to_db(db: AsyncSession, logging_user):
         assert log.provider_message_id == sid
         assert log.status == "sent"
         assert log.direction == "outbound"
-        # Ensure no content is stored (since 'content' column was removed from model)
         assert not hasattr(log, "content") or log.content is None
     finally:
         whatsapp_service.mock_mode = original_mock_mode

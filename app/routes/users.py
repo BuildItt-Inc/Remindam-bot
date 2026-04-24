@@ -19,7 +19,6 @@ async def create_user(
     request: Request, obj_in: UserCreate, db: AsyncSession = Depends(get_db)
 ):
     """Register a new user and profile."""
-    # Check if a user with this WhatsApp number already exists
     existing_user = await user_service.get_by_whatsapp_number(
         db, whatsapp_number=obj_in.profile.whatsapp_number
     )

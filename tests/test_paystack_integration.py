@@ -29,7 +29,6 @@ async def test_dynamic_upgrade_flow_simulation(db: AsyncSession, pay_user):
     and creates a DB record.
     """
 
-    # Mock Paystack API
     mock_response = {
         "status": True,
         "message": "Authorization URL created",
@@ -48,22 +47,18 @@ async def test_dynamic_upgrade_flow_simulation(db: AsyncSession, pay_user):
             status_code=200, json=lambda: mock_response, raise_for_status=lambda: None
         )
 
-        # Simulate user tapping "menu_upgrade"
         msg, next_state, state_data = await flow_service.handle(
             db, pay_user, "idle", {}, "menu_upgrade"
         )
 
-        # 1. Verify message contains the dynamic link
         assert "https://checkout.paystack.com/test-link" in msg.body
 
-        # 2. Verify Payment record was created in DB
         query = select(Payment).where(Payment.user_id == pay_user.id)
         result = await db.execute(query)
         payment = result.scalars().first()
 
         assert payment is not None
         assert payment.status == "pending"
-        # Since secrets.token_hex(8) is used, we just check it starts with rem_
         assert payment.reference.startswith("rem_")
 
 
@@ -71,10 +66,8 @@ async def test_dynamic_upgrade_flow_simulation(db: AsyncSession, pay_user):
 async def test_webhook_activation_simulation(db: AsyncSession, pay_user):
     """Test that a successful webhook activates the subscription."""
 
-    # 1. Manually create a pending payment
     from app.models.payment import Payment
 
-    # Create a pending subscription first
     sub = Subscription(
         user_id=pay_user.id, plan="monthly", status="pending", amount_kobo=50000
     )
@@ -95,15 +88,12 @@ async def test_webhook_activation_simulation(db: AsyncSession, pay_user):
     db.add(payment)
     await db.commit()
 
-    # 2. Simulate webhook call
     success = await process_successful_payment(db, ref)
     assert success is True
 
-    # 3. Verify Payment is successful
     await db.refresh(payment)
     assert payment.status == "successful"
 
-    # 4. Verify Subscription is active
     await db.refresh(sub)
     assert sub.status == "active"
     assert sub.starts_at is not None
