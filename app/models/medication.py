@@ -121,7 +121,7 @@ class MedicationSchedule(Base):
     )
     medication_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("medications.id"),
+        ForeignKey("medications.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
