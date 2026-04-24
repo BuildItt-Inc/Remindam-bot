@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = Field(..., description="PostgreSQL connection string")
     TEST_DATABASE_URL: str | None = None
     USE_NULL_POOL: bool = False
+    DEBUG: bool = False
 
     REDIS_URL: str = "redis://localhost:6379/0"
 

@@ -13,10 +13,22 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("/webhook")
+@router.post(
+    "/webhook",
+    summary="Paystack Subscription Webhook",
+    description=(
+        "Paystack automated webhook event consumer. "
+        "Listens for charge.success events to provision "
+        "Premium/Standard upgrades upon validated payment."
+    ),
+)
 async def paystack_webhook(
     request: Request,
-    x_paystack_signature: str = Header(...),
+    x_paystack_signature: str = Header(
+        ...,
+        alias="x-paystack-signature",
+        description="HMAC SHA512 signature for webhook validation",
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """Paystack Payment Webhook."""
@@ -60,11 +72,22 @@ async def paystack_webhook(
     return Response(status_code=status.HTTP_200_OK)
 
 
-@router.get("/callback", response_class=HTMLResponse)
+@router.get(
+    "/callback",
+    response_class=HTMLResponse,
+    summary="Paystack Browser Callback",
+    description=(
+        "Browser redirect after a Paystack payment attempt. "
+        "Shows a confirmation page and instructs the user to return to WhatsApp."
+    ),
+)
 async def paystack_callback(
     reference: str,
 ):
-    """Browser redirect after Paystack payment attempt."""
+    """Redirect browsers after a Paystack payment attempt.
+
+    Renders a confirmation HTML page and prompts the user to return to WhatsApp.
+    """
     safe_ref = html.escape(reference)
     html_content = f"""
     <html>

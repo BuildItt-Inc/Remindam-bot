@@ -11,10 +11,49 @@ from app.config import settings
 from app.routes import medications, payments, reports, users, whatsapp
 from app.security import limiter
 
+tags_metadata = [
+    {
+        "name": "whatsapp",
+        "description": (
+            "Twilio WhatsApp Webhook integration. "
+            "Processes conversational events and interactive payloads. "
+            "(Internal Webhook Only)"
+        ),
+    },
+    {
+        "name": "payments",
+        "description": (
+            "Paystack integrations: payment intents, "
+            "callbacks, and subscription lifecycle webhooks."
+        ),
+    },
+    {
+        "name": "reports",
+        "description": "Premium endpoints for generating user adherence reports.",
+    },
+    {
+        "name": "medications",
+        "description": "REST endpoints for managing user medications and schedules.",
+    },
+    {
+        "name": "users",
+        "description": "REST endpoints for profiling and user management.",
+    },
+]
+
 app = FastAPI(
     title="Remindam Bot API",
-    description="WhatsApp Medication Reminder Bot with Celery backend",
-    version="0.1.0",
+    description=(
+        "Backend API for the Remindam WhatsApp medication reminder bot. "
+        "Manages scheduling, state, reporting, and external webhooks "
+        "(Paystack and Twilio). "
+        "Docs are disabled in production (DEBUG=False)."
+    ),
+    version="1.0.0",
+    openapi_tags=tags_metadata,
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    openapi_url="/openapi.json" if settings.DEBUG else None,
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -58,9 +97,9 @@ app.mount("/legal", StaticFiles(directory="app/static"), name="legal")
 @app.get("/")
 async def root():
     return {
-        "message": "Welcome to Remindam Bot API",
+        "message": "Remindam Bot API",
         "status": "active",
-        "version": "0.1.0",
+        "version": "1.0.0",
     }
 
 
