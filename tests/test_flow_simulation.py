@@ -24,7 +24,6 @@ async def test_medication_flow_simulation(db: AsyncSession, sim_user):
     """Simulate a full medication addition flow."""
     whatsapp_number = sim_user.profile.whatsapp_number
 
-    # Mock state_service and whatsapp_service
     with (
         patch("app.services.intent_service._get_state_service") as mock_get_state,
         patch(
@@ -34,67 +33,55 @@ async def test_medication_flow_simulation(db: AsyncSession, sim_user):
         mock_state_svc = AsyncMock()
         mock_get_state.return_value = mock_state_svc
 
-        # send() now returns (msg_id, options)
         mock_send.return_value = ("MOCK_ID", [])
 
-        # Initial state: user types "1" for "Add Medication"
         mock_state_svc.get_state.return_value = {"state": "idle", "data": {}}
 
         await intent_service.handle_message(db, whatsapp_number, "menu_medication")
 
-        # Verify bot asked for medication name
         mock_send.assert_called()
         args, kwargs = mock_send.call_args
         msg = args[1]
         assert "What is the *name* of your medication?" in msg.body
 
-        # Step 2: User types "Paracetamol"
         mock_state_svc.get_state.return_value = {"state": "med_name", "data": {}}
         await intent_service.handle_message(db, whatsapp_number, "Paracetamol")
 
-        # Verify bot asked for form
         args, kwargs = mock_send.call_args
         msg = args[1]
         assert isinstance(msg, ListMsg)
         assert "What form is your medication?" in msg.body
 
-        # Step 3: User selects "Tablet"
         mock_state_svc.get_state.return_value = {
             "state": "med_form",
             "data": {"name": "Paracetamol"},
         }
         await intent_service.handle_message(db, whatsapp_number, "form_tablet")
 
-        # Verify bot asked for dosage
         args, kwargs = mock_send.call_args
         msg = args[1]
         assert "How many tablets" in msg.body
         assert "Paracetamol" in str(mock_state_svc.set_state.call_args)
 
-        # Step 4: User types "500mg"
         mock_state_svc.get_state.return_value = {
             "state": "med_dosage",
             "data": {"name": "Paracetamol", "form": "tablet"},
         }
         await intent_service.handle_message(db, whatsapp_number, "500mg")
 
-        # Verify bot asked for time
         args, kwargs = mock_send.call_args
         msg = args[1]
         assert "What *time* should I remind you?" in msg.body
 
-        # Step 5: User types "08:00"
         mock_state_svc.get_state.return_value = {
             "state": "med_time",
             "data": {"name": "Paracetamol", "form": "tablet", "dosage": "500mg"},
         }
         await intent_service.handle_message(db, whatsapp_number, "08:00")
 
-        # Verify success message
         args, kwargs = mock_send.call_args
         msg = args[1]
         assert "Paracetamol" in msg.body
         assert "saved" in msg.body.lower()
 
-        # Verify state was cleared
         mock_state_svc.clear_state.assert_called_with(whatsapp_number)

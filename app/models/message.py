@@ -40,7 +40,6 @@ class MessageLog(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    # Relationships
     user: Mapped["User | None"] = relationship(back_populates="message_logs")
     reminder_log: Mapped["ReminderLog | None"] = relationship()
 

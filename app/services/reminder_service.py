@@ -29,7 +29,6 @@ class ReminderService:
         if current_time is None:
             current_time = datetime.now(UTC)
 
-        # Use SKIP LOCKED to safely grab reminders without blocking other workers
         query = (
             select(ReminderLog)
             .options(
@@ -48,7 +47,6 @@ class ReminderService:
         result = await db.execute(query)
         reminders = list(result.scalars().all())
 
-        # Mark them as "queued" to prevent other producers/consumers from getting them
         for reminder in reminders:
             reminder.status = "queued"
             db.add(reminder)
@@ -91,7 +89,6 @@ class ReminderService:
         start_date = now.date()
         target_dates = [start_date + timedelta(days=i) for i in range(days_ahead)]
 
-        # Fetch active schedules along with user profiles for timezone info
         query = (
             select(MedicationSchedule)
             .join(Medication)
@@ -114,8 +111,6 @@ class ReminderService:
             return
 
         # --- BULK FETCH EXPERIMENT ---
-        # Cache existing logs for the relevant schedules and time
-        # window to prevent N+1 queries.
         now = datetime.now(UTC)
         cutoff = now - timedelta(hours=1)
         max_future = now + timedelta(days=days_ahead + 2)
@@ -147,16 +142,12 @@ class ReminderService:
                 tz = UTC
 
             for t_date in target_dates:
-                # Combine date and time in the user's local timezone
                 local_dt = datetime.combine(t_date, schedule.scheduled_time).replace(
                     tzinfo=tz
                 )
 
-                # Convert the absolute point in time to UTC for the database
                 scheduled_for = local_dt.astimezone(UTC)
 
-                # Skip if the scheduled time is already firmly in the past
-                # (more than 1 hour ago)
                 if scheduled_for < cutoff:
                     continue
 

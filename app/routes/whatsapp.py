@@ -1,15 +1,3 @@
-"""Twilio WhatsApp webhook.
-
-Receives incoming messages from Twilio and routes them
-to the intent/flow engine. Responses are sent back
-via Twilio REST API — the webhook just returns empty TwiML.
-
-Handles three types of user input from Content Templates:
-- ButtonPayload: sent when user taps a Quick Reply button
-- ListId: sent when user selects a List Picker item
-- Body: plain text typed by the user (or fallback)
-"""
-
 import logging
 
 from fastapi import APIRouter, Depends, Header, Request, Response, status
@@ -58,7 +46,6 @@ async def twilio_webhook(
         logger.critical("TWILIO_AUTH_TOKEN is not set. Rejecting webhook request!")
         return Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-    # Use BASE_URL so signature validation is not affected by reverse-proxy headers.
     url = f"{settings.BASE_URL}{request.url.path}"
     validator = RequestValidator(settings.TWILIO_AUTH_TOKEN)
 
@@ -82,7 +69,6 @@ async def twilio_webhook(
     list_id = form_data.get("ListId", "")
     body = form_data.get("Body", "")
 
-    # Priority: ButtonPayload > ListId > plain Body
     message_body = (button_payload or list_id or body).strip()
 
     if not phone or not message_body:
@@ -92,7 +78,6 @@ async def twilio_webhook(
             status_code=status.HTTP_200_OK,
         )
 
-    # Log message type without logging raw user content or full phone numbers.
     msg_type = "button" if button_payload else ("list" if list_id else "text")
     logger.info(
         "Incoming WhatsApp msg_type=%s phone_suffix=...%s", msg_type, phone[-4:]

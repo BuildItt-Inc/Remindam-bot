@@ -14,7 +14,6 @@ from app.services.user_service import user_service
 
 @pytest.fixture
 async def medication_with_schedule(db: AsyncSession):
-    # Setup a user and medication first
     user_in = UserCreate(
         profile=UserProfileCreate(
             whatsapp_number="+2349000000001", first_name="Reminder", last_name="Tester"
@@ -64,11 +63,9 @@ async def test_get_due_reminders(db: AsyncSession, medication_with_schedule):
     user, medication = medication_with_schedule
     schedule = medication.schedules[0]
 
-    # Clear pre-generated reminders
     await db.execute(delete(ReminderLog).where(ReminderLog.user_id == user.id))
     await db.commit()
 
-    # Create a reminder due in the past
     past_due = datetime.now(UTC) - timedelta(minutes=5)
     log_in = ReminderLogCreate(
         schedule_id=schedule.id,
@@ -78,7 +75,6 @@ async def test_get_due_reminders(db: AsyncSession, medication_with_schedule):
     )
     await reminder_service.create_reminder_log(db, obj_in=log_in)
 
-    # Create a future reminder (not due)
     future_due = datetime.now(UTC) + timedelta(hours=1)
     future_log_in = ReminderLogCreate(
         schedule_id=schedule.id,

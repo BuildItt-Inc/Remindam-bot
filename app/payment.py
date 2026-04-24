@@ -98,7 +98,6 @@ async def process_successful_payment(
             f"for payment {reference}."
         )
 
-    # Send WhatsApp Confirmation
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
 

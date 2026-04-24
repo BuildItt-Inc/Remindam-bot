@@ -1,5 +1,3 @@
-"""Tests for the Twilio-based WhatsApp service."""
-
 import logging
 from unittest.mock import MagicMock, patch
 
@@ -39,7 +37,6 @@ async def test_whatsapp_service_real_mode_success():
         service = WhatsAppService()
         assert service.mock_mode is False
 
-        # Mock the Twilio client
         mock_msg = MagicMock()
         mock_msg.sid = "SM_TEST_123"
         mock_client = MagicMock()
@@ -66,7 +63,6 @@ async def test_whatsapp_service_real_mode_failure(caplog):
 
         service = WhatsAppService()
 
-        # Mock the Twilio client to raise
         mock_client = MagicMock()
         mock_client.messages.create.side_effect = Exception("Connection Error")
         service._get_client = MagicMock(return_value=mock_client)

@@ -34,7 +34,6 @@ async def paystack_webhook(
     """Paystack Payment Webhook."""
     payload = await request.body()
 
-    # 1. Verify signature
     if not verify_paystack_webhook(payload, x_paystack_signature):
         logger.warning("Invalid Paystack webhook signature")
         raise HTTPException(
@@ -42,7 +41,6 @@ async def paystack_webhook(
             detail="Invalid signature",
         )
 
-    # 2. Parse event from raw bytes (avoid double-read)
     try:
         from pydantic import BaseModel
 

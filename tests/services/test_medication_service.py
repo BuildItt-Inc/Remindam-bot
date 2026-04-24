@@ -102,13 +102,11 @@ async def test_deactivate_medication(
 
     await medication_service.deactivate_medication(db, medication_id=med.id)
 
-    # get_user_medications filters by is_active=True
     active_meds = await medication_service.get_user_medications(
         db, user_id=test_user.id
     )
     assert len(active_meds) == 0
 
-    # It should still exist but be inactive
     db_obj = await medication_service.get_medication_by_id(db, medication_id=med.id)
     assert db_obj is not None
     assert db_obj.is_active is False

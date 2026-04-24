@@ -35,7 +35,6 @@ class PaymentService:
         if not db_obj:
             return None
 
-        # Idempotency: skip if already processed
         if db_obj.status == "successful":
             logger.info("Payment %s already processed, skipping.", reference)
             return db_obj
@@ -63,10 +62,8 @@ class PaymentService:
             logger.error("PAYSTACK_SECRET_KEY not set")
             return None
 
-        # 1. Create unique reference
         reference = f"rem_{secrets.token_hex(8)}"
 
-        # 2. Call Paystack API
         url = "https://api.paystack.co/transaction/initialize"
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
@@ -88,7 +85,6 @@ class PaymentService:
                 resp.raise_for_status()
                 data = resp.json()
 
-            # 3. Create pending record in DB
             payment_in = PaymentCreate(
                 amount=amount_kobo,
                 reference=reference,

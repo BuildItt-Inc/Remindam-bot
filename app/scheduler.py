@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import threading
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from celery import Celery
@@ -15,14 +16,12 @@ from app.services.whatsapp_service import whatsapp_service
 
 logger = logging.getLogger(__name__)
 
-# Initialize Celery
 celery_app = Celery(
     "remindam",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
 )
 
-# Optional configuration
 celery_app.conf.update(
     task_serializer="json",
     accept_content=["json"],
@@ -37,6 +36,14 @@ celery_app.conf.update(
         "generate-future-reminders-hourly": {
             "task": "app.scheduler.generate_future_reminders_task",
             "schedule": crontab(minute="0"),  # Every hour
+        },
+        "cleanup-deleted-users-daily": {
+            "task": "app.scheduler.cleanup_deleted_users_task",
+            "schedule": crontab(minute="0", hour="2"),  # 2:00am UTC
+        },
+        "notify-pending-deletion-daily": {
+            "task": "app.scheduler.notify_pending_deletion_task",
+            "schedule": crontab(minute="0", hour="9"),  # 9:00am UTC
         },
     },
 )
@@ -191,7 +198,6 @@ def send_whatsapp_task(reminder_log_id: str):
                 )
 
             else:
-                # Default: medication
                 dosage_val = ""
                 if med.dosage_amount:
                     amount_str = f"{med.dosage_amount:g}"
@@ -227,8 +233,6 @@ def send_whatsapp_task(reminder_log_id: str):
                 reminder_log_id=reminder.id,
             )
 
-            # Store last reminder ID so the flow engine can map
-            # template button IDs (take_action) → take_{uuid}
             if msg_id:
                 try:
                     from app.services.state_service import state_service
@@ -255,3 +259,97 @@ def send_whatsapp_task(reminder_log_id: str):
                 logger.error(f"Failed to send WhatsApp for reminder {reminder_log_id}")
 
     run_async(process_reminder())
+
+
+@celery_app.task(name="app.scheduler.cleanup_deleted_users_task")
+def cleanup_deleted_users_task():
+    """Hard-delete users whose soft-delete grace period (90 days) has expired."""
+    logger.info("Running daily cleanup of expired soft-deleted users...")
+
+    async def cleanup():
+        from sqlalchemy import delete, select
+
+        from app.models.user import User
+
+        cutoff = datetime.now(UTC) - timedelta(days=90)
+
+        async with async_session() as db:
+            query = select(User).where(
+                User.deleted_at.is_not(None),
+                User.deleted_at <= cutoff,
+            )
+            result = await db.execute(query)
+            expired_users = result.scalars().all()
+
+            if not expired_users:
+                logger.info("No expired soft-deleted users to clean up.")
+                return
+
+            expired_ids = [u.id for u in expired_users]
+            logger.info(
+                "Found %d expired soft-deleted users to purge.", len(expired_ids)
+            )
+
+            await db.execute(delete(User).where(User.id.in_(expired_ids)))
+            await db.commit()
+            logger.info("Successfully purged %d soft-deleted users.", len(expired_ids))
+
+    run_async(cleanup())
+
+
+@celery_app.task(name="app.scheduler.notify_pending_deletion_task")
+def notify_pending_deletion_task():
+    """Warn users 7 days before their data is permanently deleted."""
+    logger.info("Running daily pending-deletion notification check...")
+
+    async def notify():
+        from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
+
+        from app.models.user import User
+        from app.services.message_types import TextMsg
+        from app.services.whatsapp_service import whatsapp_service
+
+        now = datetime.now(UTC)
+        window_start = now - timedelta(days=84)
+        window_end = now - timedelta(days=83)
+
+        async with async_session() as db:
+            query = (
+                select(User)
+                .options(selectinload(User.profile))
+                .where(
+                    User.deleted_at.is_not(None),
+                    User.deleted_at >= window_start,
+                    User.deleted_at < window_end,
+                )
+            )
+            result = await db.execute(query)
+            users_to_notify = result.scalars().all()
+
+            if not users_to_notify:
+                logger.info("No users approaching permanent deletion.")
+                return
+
+            logger.info("Sending deletion warnings to %d users.", len(users_to_notify))
+            for user in users_to_notify:
+                if not user.profile:
+                    continue
+                msg = TextMsg(
+                    body=(
+                        "⚠️ Your account will be permanently deleted in 7 days. "
+                        "Reply RESTORE to reactivate your account."
+                    )
+                )
+                await whatsapp_service.send(
+                    user.profile.whatsapp_number,
+                    msg,
+                    db=db,
+                    user_id=user.id,
+                    commit=False,
+                )
+
+            await db.commit()
+            logger.info("Sent %d deletion warning messages.", len(users_to_notify))
+
+    run_async(notify())
