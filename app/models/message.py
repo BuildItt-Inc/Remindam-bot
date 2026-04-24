@@ -18,10 +18,16 @@ class MessageLog(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     user_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
     )
     reminder_log_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("reminder_logs.id"), nullable=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("reminder_logs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     direction: Mapped[str] = mapped_column(
         String(10), nullable=False, default="outbound"
@@ -34,7 +40,6 @@ class MessageLog(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    # Relationships
     user: Mapped["User | None"] = relationship(back_populates="message_logs")
     reminder_log: Mapped["ReminderLog | None"] = relationship()
 

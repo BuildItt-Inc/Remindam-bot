@@ -1,11 +1,3 @@
-"""WhatsApp messaging via Twilio.
-
-Supports sending messages via Twilio Content API (native buttons/lists)
-with fallback to plain text when no content_sid is available.
-
-Falls back to mock mode when Twilio credentials are not set.
-"""
-
 import json
 import logging
 from uuid import UUID
@@ -17,6 +9,15 @@ from app.models.message import MessageLog
 from app.services.message_types import Msg
 
 logger = logging.getLogger(__name__)
+
+
+def mask_phone_number(number: str) -> str:
+    """Mask a phone number for safe logging (e.g., +234****6789)."""
+    if not number:
+        return "UNKNOWN"
+    if len(number) <= 8:
+        return "****"
+    return f"{number[:4]}****{number[-4:]}"
 
 
 class WhatsAppService:
@@ -48,6 +49,7 @@ class WhatsAppService:
         db: AsyncSession | None = None,
         user_id: UUID | None = None,
         reminder_log_id: UUID | None = None,
+        commit: bool = True,
     ) -> str | None:
         """Send a structured message.
 
@@ -67,9 +69,9 @@ class WhatsAppService:
                 db=db,
                 user_id=user_id,
                 reminder_log_id=reminder_log_id,
+                commit=commit,
             )
 
-        # Fallback: send plain text
         text = msg.body
         return await self._send_text(
             to_number,
@@ -77,6 +79,7 @@ class WhatsAppService:
             db=db,
             user_id=user_id,
             reminder_log_id=reminder_log_id,
+            commit=commit,
         )
 
     async def _send_template(
@@ -88,6 +91,7 @@ class WhatsAppService:
         db: AsyncSession | None = None,
         user_id: UUID | None = None,
         reminder_log_id: UUID | None = None,
+        commit: bool = True,
     ) -> str | None:
         """Send a message using a Twilio Content Template (native buttons/lists)."""
         msg_id = None
@@ -104,7 +108,6 @@ class WhatsAppService:
                 if content_variables:
                     kwargs["content_variables"] = json.dumps(content_variables)
 
-                # Use messaging_service_sid for production, from_ for sandbox
                 if self.messaging_service_sid:
                     kwargs["messaging_service_sid"] = self.messaging_service_sid
                 else:
@@ -114,15 +117,14 @@ class WhatsAppService:
                 msg_id = twilio_msg.sid
                 status = "sent"
                 logger.info(
-                    "Sent WhatsApp template %s to %s, sid: %s",
-                    content_sid,
-                    to_number,
+                    "Sent WhatsApp template to %s, sid: %s",
+                    mask_phone_number(to_number),
                     msg_id,
                 )
             except Exception as e:
                 logger.error(
                     "Failed to send WhatsApp template to %s: %s",
-                    to_number,
+                    mask_phone_number(to_number),
                     e,
                 )
         else:
@@ -130,12 +132,12 @@ class WhatsAppService:
             status = "sent"
             logger.info(
                 "[MOCK WHATSAPP] To: %s | Template: %s | Vars: %s",
-                to_number,
+                mask_phone_number(to_number),
                 content_sid,
                 content_variables,
             )
 
-        await self._log(db, user_id, reminder_log_id, msg_id, status)
+        await self._log(db, user_id, reminder_log_id, msg_id, status, commit=commit)
         return msg_id
 
     async def _send_text(
@@ -147,6 +149,7 @@ class WhatsAppService:
         db: AsyncSession | None = None,
         user_id: UUID | None = None,
         reminder_log_id: UUID | None = None,
+        commit: bool = True,
     ) -> str | None:
         """Send a plain text message (or media) via Twilio."""
         msg_id = None
@@ -166,11 +169,12 @@ class WhatsAppService:
                 twilio_msg = client.messages.create(**kwargs)
                 msg_id = twilio_msg.sid
                 status = "sent"
-                logger.info("Sent WhatsApp text to %s, sid: %s", to_number, msg_id)
+                masked_to = mask_phone_number(to_number)
+                logger.info("Sent WhatsApp text to %s, sid: %s", masked_to, msg_id)
             except Exception as e:
                 logger.error(
                     "Failed to send WhatsApp message to %s: %s",
-                    to_number,
+                    mask_phone_number(to_number),
                     e,
                 )
         else:
@@ -178,11 +182,11 @@ class WhatsAppService:
             status = "sent"
             logger.info(
                 "[MOCK WHATSAPP] To: %s | Message: %s",
-                to_number,
+                mask_phone_number(to_number),
                 message[:80],
             )
 
-        await self._log(db, user_id, reminder_log_id, msg_id, status)
+        await self._log(db, user_id, reminder_log_id, msg_id, status, commit=commit)
         return msg_id
 
     # ── Helpers ──
@@ -194,6 +198,7 @@ class WhatsAppService:
         reminder_log_id: UUID | None,
         msg_id: str | None,
         status: str,
+        commit: bool = True,
     ):
         """Store message metadata (no content) for delivery tracking."""
         if db and user_id:
@@ -206,9 +211,13 @@ class WhatsAppService:
                     direction="outbound",
                 )
                 db.add(log_entry)
-                await db.commit()
+                if commit:
+                    await db.commit()
             except Exception as e:
                 logger.error("Failed to log message to DB: %s", e)
+                if not commit:
+                    await db.rollback()
+                    raise
 
 
 whatsapp_service = WhatsAppService()

@@ -49,7 +49,6 @@ class SubscriptionService:
         count = await db.scalar(count_q)
 
         if self.is_trial_active(user):
-            # Trial = Standard tier = max 5 reminders total
             return count < 5
 
         sub = await self.get_user_subscription(db, user.id)
@@ -59,7 +58,6 @@ class SubscriptionService:
         if sub.plan == "standard":
             return count < 5
 
-        # Premium = unlimited
         return True
 
     async def can_access_reports(self, db: AsyncSession, user_id: UUID) -> bool:

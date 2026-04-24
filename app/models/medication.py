@@ -64,7 +64,10 @@ class Medication(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     item_type: Mapped[str] = mapped_column(
@@ -96,7 +99,6 @@ class Medication(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    # Relationships
     user: Mapped["User"] = relationship(back_populates="medications")
     schedules: Mapped[list["MedicationSchedule"]] = relationship(
         back_populates="medication"
@@ -118,7 +120,7 @@ class MedicationSchedule(Base):
     )
     medication_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("medications.id"),
+        ForeignKey("medications.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -131,7 +133,6 @@ class MedicationSchedule(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    # Relationships
     medication: Mapped["Medication"] = relationship(back_populates="schedules")
     reminder_logs: Mapped[list["ReminderLog"]] = relationship(back_populates="schedule")
 

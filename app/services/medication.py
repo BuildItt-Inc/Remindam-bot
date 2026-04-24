@@ -17,7 +17,6 @@ class MedicationService:
         self, db: AsyncSession, *, user_id: UUID, obj_in: MedicationCreate
     ) -> Medication:
         """Create a new medication and its associated schedules for a user."""
-        # 0. Enforce Trial & Subscription logic
         user = await user_service.get_by_id(db, user_id=user_id)
         if not user or not await subscription_service.can_add_reminder(db, user):
             raise ValueError(
@@ -40,7 +39,6 @@ class MedicationService:
         await db.commit()
         await db.refresh(new_medication)
 
-        # Pre-generate reminder logs for this new medication
         await reminder_service.generate_future_reminders(db, user_id=user_id)
 
         return await self.get_medication_by_id(db, new_medication.id)

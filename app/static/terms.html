@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terms of Service - ReminDAM</title>
+    <title>Terms of Service - RemindAm</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -44,13 +44,13 @@
     <h1>Terms of Service</h1>
     <p class="date">Last Updated: April 13, 2026</p>
 
-    <p>These Terms govern the use of ReminDAM, a product of Builditt.</p>
+    <p>These Terms govern the use of RemindAm, a product of Builditt.</p>
 
     <h2>1. Acceptance</h2>
-    <p>Use of ReminDAM constitutes acceptance of these Terms.</p>
+    <p>Use of RemindAm constitutes acceptance of these Terms.</p>
 
     <h2>2. Service Description</h2>
-    <p>ReminDAM provides medication reminders, health tips, and exercise and gym reminders. It does not provide medical
+    <p>RemindAm provides medication reminders, health tips, and exercise and gym reminders. It does not provide medical
         or fitness coaching services.</p>
 
     <h2>3. Eligibility</h2>
@@ -73,7 +73,7 @@
 
     <h2>6. Payment</h2>
     <ul>
-        <li>Fees are ₦500 or as specified in the application.</li>
+        <li>Fees are ₦500 for standard plan and ₦1200 for premium plan.</li>
         <li>Payments are processed via secure third-party providers (Paystack).</li>
     </ul>
 
@@ -95,7 +95,8 @@
     <p>The laws of the Federal Republic of Nigeria shall govern these terms.</p>
 
     <footer>
-        &copy; 2026 Builditt. All rights reserved.
+        &copy; <span id="current-year"></span> Builditt. All rights reserved.
+        <script>document.getElementById("current-year").textContent = new Date().getFullYear();</script>
     </footer>
 </body>
 

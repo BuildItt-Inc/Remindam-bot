@@ -1,4 +1,4 @@
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = Field(..., description="PostgreSQL connection string")
     TEST_DATABASE_URL: str | None = None
     USE_NULL_POOL: bool = False
+    DEBUG: bool = False
 
     REDIS_URL: str = "redis://localhost:6379/0"
 
@@ -16,13 +17,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # Twilio (WhatsApp)
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_WHATSAPP_NUMBER: str = ""
     TWILIO_MESSAGING_SERVICE_SID: str = ""
 
-    # Twilio Content Template SIDs
     CT_REMINDER_MEDICATION: str = ""
     CT_REMINDER_EXERCISE: str = ""
     CT_REMINDER_WATER: str = ""
@@ -55,6 +54,20 @@ class Settings(BaseSettings):
     BASE_URL: str = "https://yourdomain.com"
 
     model_config = {"env_file": ".env", "extra": "ignore"}
+
+    @model_validator(mode="after")
+    def validate_api_key_in_production(self) -> "Settings":
+        import os
+
+        is_ci = (
+            os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true"
+        )
+        if not self.DEBUG and not is_ci and self.API_KEY == "dev-secret-key":
+            raise ValueError(
+                "API_KEY must be changed from default 'dev-secret-key' "
+                "when running in production (DEBUG=False)"
+            )
+        return self
 
 
 settings = Settings()
