@@ -830,19 +830,19 @@ class FlowService:
         if body == "back":
             return EXERCISE_TYPE_MENU, "exercise_type", {}
         if body == "dur_custom":
-            body_text = (
+            prompt = (
                 "How long is your session?\n\n"
                 "👇 *Type it below (e.g. 20 mins, 2 hours)*"
             )
             return (
                 ButtonMsg(
-                    body=body_text,
+                    body=prompt,
                     buttons=[
                         Button(id="back", text="⬅️ Back"),
                         Button(id="go_menu", text="🏠 Main Menu"),
                     ],
                     content_sid=settings.CT_BACK_MENU,
-                    content_variables={"1": body_text},
+                    content_variables={"1": prompt},
                 ),
                 "exercise_duration_custom",
                 data,
@@ -877,22 +877,25 @@ class FlowService:
             return EXERCISE_DURATION_MENU, "exercise_duration", data
         duration = body.strip()
         if not _is_valid_custom_text(duration):
-            body_text = "❌ Please type a valid duration (e.g. 20 mins):"
+            prompt = (
+                "❌ Please type a valid duration.\n\n"
+                "👇 *Type it below (e.g. 20 mins, 2 hours)*"
+            )
             return (
                 ButtonMsg(
-                    body=body_text,
+                    body=prompt,
                     buttons=[
                         Button(id="back", text="⬅️ Back"),
                         Button(id="go_menu", text="🏠 Main Menu"),
                     ],
                     content_sid=settings.CT_BACK_MENU,
-                    content_variables={"1": body_text},
+                    content_variables={"1": prompt},
                 ),
                 "exercise_duration_custom",
                 data,
             )
         data["duration"] = duration
-        data["_prev_state"] = "exercise_duration"
+        data["_prev_state"] = "exercise_duration_custom"
         body_text = (
             "What *time* should I remind you?\n\n"
             "👇 *Type the time below (e.g. 6:00am or 5:30pm)*"
@@ -917,23 +920,19 @@ class FlowService:
         if body == "back":
             if data.get("_prev_state") == "exercise_duration":
                 return EXERCISE_DURATION_MENU, "exercise_duration", data
+            prompt = (
+                "How long is your session?\n\n"
+                "👇 *Type it below (e.g. 20 mins, 2 hours)*"
+            )
             return (
                 ButtonMsg(
-                    body=(
-                        "How long is your session?\n\n"
-                        "👇 *Type it below (e.g. 20 mins, 2 hours)*"
-                    ),
+                    body=prompt,
                     buttons=[
                         Button(id="back", text="⬅️ Back"),
                         Button(id="go_menu", text="🏠 Main Menu"),
                     ],
                     content_sid=settings.CT_BACK_MENU,
-                    content_variables={
-                        "1": (
-                            "How long is your session?\n\n"
-                            "👇 *Type it below (e.g. 20 mins, 2 hours)*"
-                        )
-                    },
+                    content_variables={"1": prompt},
                 ),
                 "exercise_duration_custom",
                 data,
