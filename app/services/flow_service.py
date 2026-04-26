@@ -110,7 +110,7 @@ EXERCISE_ID_MAP = {
 }
 
 EXERCISE_DURATION_MENU = ListMsg(
-    body="How long is your session?",
+    body="How long is your session?\n\n👇 *Select below or type a custom duration*",
     button_text="Select Duration",
     title="Exercise Duration",
     sections=[
@@ -122,6 +122,7 @@ EXERCISE_DURATION_MENU = ListMsg(
                 ListRow(id="dur_45", title="⏱ 45 minutes"),
                 ListRow(id="dur_60", title="⏱ 1 hour"),
                 ListRow(id="dur_90", title="⏱ 1.5 hours"),
+                ListRow(id="dur_custom", title="✏️ Other (type it)"),
             ],
         )
     ],
@@ -426,7 +427,7 @@ class FlowService:
 
             body_text = (
                 "What is the *name* of your medication?\n\n"
-                "_Type the name (e.g. Paracetamol)_"
+                "👇 *Type the name below (e.g. Paracetamol)*"
             )
             return (
                 ButtonMsg(
@@ -496,7 +497,7 @@ class FlowService:
             body_text = (
                 "❌ Please enter a valid medication name "
                 "(at least 2 characters).\n\n"
-                "_Type the name (e.g. Paracetamol)_"
+                "👇 *Type the name below (e.g. Paracetamol)*"
             )
             return (
                 ButtonMsg(
@@ -523,7 +524,7 @@ class FlowService:
         if body == "back":
             body_text = (
                 "What is the *name* of your medication?\n\n"
-                "_Type the name (e.g. Paracetamol)_"
+                "👇 *Type the name below (e.g. Paracetamol)*"
             )
             return (
                 ButtonMsg(
@@ -539,7 +540,10 @@ class FlowService:
                 None,
             )
         if body == "form_custom":
-            body_text = "Type the form of your medication (e.g. powder, patch, spray):"
+            body_text = (
+                "What is the form of your medication?\n\n"
+                "👇 *Type it below (e.g. powder, patch, spray)*"
+            )
             return (
                 ButtonMsg(
                     body=body_text,
@@ -572,6 +576,8 @@ class FlowService:
             prompt = "What is the dosage for the injection (e.g. 1 vial, 10ml)?"
         else:
             prompt = "How much should I remind you to apply (e.g. 1 scoop, pea-sized)?"
+
+        prompt += "\n\n👇 *Type the dosage below*"
 
         return (
             ButtonMsg(
@@ -611,7 +617,10 @@ class FlowService:
             )
         data["form"] = custom_form
         data["_prev_state"] = "med_form"
-        body_text = f"How much *{custom_form}* should I remind you to take?"
+        body_text = (
+            f"How much *{custom_form}* should I remind you to take?\n\n"
+            "👇 *Type the dosage below*"
+        )
         return (
             ButtonMsg(
                 body=body_text,
@@ -663,7 +672,7 @@ class FlowService:
         data["_prev_state"] = "med_dosage"
         body_text = (
             "What *time* should I remind you?\n\n"
-            "_Type the time (e.g. 8:00am or 2:30pm)_"
+            "👇 *Type the time below (e.g. 8:00am or 2:30pm)*"
         )
         return (
             ButtonMsg(
@@ -762,7 +771,10 @@ class FlowService:
         self, db: AsyncSession, user: User, data: dict, body: str
     ) -> tuple[Msg, str | None, dict | None]:
         if body == "ex_custom":
-            body_text = "Type the name of your exercise (e.g. Pilates, Jump Rope):"
+            body_text = (
+                "What is the name of your exercise?\n\n"
+                "👇 *Type it below (e.g. Pilates, Jump Rope)*"
+            )
             return (
                 ButtonMsg(
                     body=body_text,
@@ -817,6 +829,24 @@ class FlowService:
     ) -> tuple[Msg, str | None, dict | None]:
         if body == "back":
             return EXERCISE_TYPE_MENU, "exercise_type", {}
+        if body == "dur_custom":
+            body_text = (
+                "How long is your session?\n\n"
+                "👇 *Type it below (e.g. 20 mins, 2 hours)*"
+            )
+            return (
+                ButtonMsg(
+                    body=body_text,
+                    buttons=[
+                        Button(id="back", text="⬅️ Back"),
+                        Button(id="go_menu", text="🏠 Main Menu"),
+                    ],
+                    content_sid=settings.CT_BACK_MENU,
+                    content_variables={"1": body_text},
+                ),
+                "exercise_duration_custom",
+                data,
+            )
         duration = DURATION_ID_MAP.get(body)
         if not duration:
             return EXERCISE_DURATION_MENU, "exercise_duration", data
@@ -824,7 +854,48 @@ class FlowService:
         data["_prev_state"] = "exercise_duration"
         body_text = (
             "What *time* should I remind you?\n\n"
-            "_Type the time (e.g. 6:00am or 5:30pm)_"
+            "👇 *Type the time below (e.g. 6:00am or 5:30pm)*"
+        )
+        return (
+            ButtonMsg(
+                body=body_text,
+                buttons=[
+                    Button(id="back", text="⬅️ Back"),
+                    Button(id="go_menu", text="🏠 Main Menu"),
+                ],
+                content_sid=settings.CT_BACK_MENU,
+                content_variables={"1": body_text},
+            ),
+            "exercise_time",
+            data,
+        )
+
+    async def _s_exercise_duration_custom(
+        self, db: AsyncSession, user: User, data: dict, body: str
+    ) -> tuple[Msg, str | None, dict | None]:
+        if body == "back":
+            return EXERCISE_DURATION_MENU, "exercise_duration", data
+        duration = body.strip()
+        if not _is_valid_custom_text(duration):
+            body_text = "❌ Please type a valid duration (e.g. 20 mins):"
+            return (
+                ButtonMsg(
+                    body=body_text,
+                    buttons=[
+                        Button(id="back", text="⬅️ Back"),
+                        Button(id="go_menu", text="🏠 Main Menu"),
+                    ],
+                    content_sid=settings.CT_BACK_MENU,
+                    content_variables={"1": body_text},
+                ),
+                "exercise_duration_custom",
+                data,
+            )
+        data["duration"] = duration
+        data["_prev_state"] = "exercise_duration"
+        body_text = (
+            "What *time* should I remind you?\n\n"
+            "👇 *Type the time below (e.g. 6:00am or 5:30pm)*"
         )
         return (
             ButtonMsg(
@@ -844,7 +915,29 @@ class FlowService:
         self, db: AsyncSession, user: User, data: dict, body: str
     ) -> tuple[Msg, str | None, dict | None]:
         if body == "back":
-            return EXERCISE_DURATION_MENU, "exercise_duration", data
+            if data.get("_prev_state") == "exercise_duration":
+                return EXERCISE_DURATION_MENU, "exercise_duration", data
+            return (
+                ButtonMsg(
+                    body=(
+                        "How long is your session?\n\n"
+                        "👇 *Type it below (e.g. 20 mins, 2 hours)*"
+                    ),
+                    buttons=[
+                        Button(id="back", text="⬅️ Back"),
+                        Button(id="go_menu", text="🏠 Main Menu"),
+                    ],
+                    content_sid=settings.CT_BACK_MENU,
+                    content_variables={
+                        "1": (
+                            "How long is your session?\n\n"
+                            "👇 *Type it below (e.g. 20 mins, 2 hours)*"
+                        )
+                    },
+                ),
+                "exercise_duration_custom",
+                data,
+            )
         parsed = _parse_time(body)
         if not parsed:
             body_text = (
@@ -905,7 +998,10 @@ class FlowService:
         self, db: AsyncSession, user: User, data: dict, body: str
     ) -> tuple[Msg, str | None, dict | None]:
         if body == "water_custom":
-            body_text = "Type your custom water amount (e.g. 350ml, 1.5 litres):"
+            body_text = (
+                "What is your custom water amount?\n\n"
+                "👇 *Type it below (e.g. 350ml, 1.5 litres)*"
+            )
             return (
                 ButtonMsg(
                     body=body_text,
@@ -961,7 +1057,10 @@ class FlowService:
         if body == "back":
             return WATER_AMOUNT_MENU, "water_amount", {}
         if body == "int_custom":
-            body_text = "How many hours between each reminder? (e.g. 1.5, 2, 3):"
+            body_text = (
+                "How many hours between each reminder?\n\n"
+                "👇 *Type a number below (e.g. 1.5, 2, 3)*"
+            )
             return (
                 ButtonMsg(
                     body=body_text,
