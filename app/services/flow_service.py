@@ -31,7 +31,7 @@ _MED_NAME_PROMPT = (
 )
 
 _CUSTOM_DURATION_PROMPT = (
-    "How long is your session?\n\n" "👇 *Type it below (e.g. 20 mins, 2 hours)*"
+    "How long is your session?\n\n👇 *Type it below (e.g. 20 mins, 2 hours)*"
 )
 
 # ── Pre-built menus ──
