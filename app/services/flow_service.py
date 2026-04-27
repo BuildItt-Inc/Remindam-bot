@@ -497,6 +497,15 @@ class FlowService:
     async def _s_med_name(
         self, db: AsyncSession, user: User, data: dict, body: str
     ) -> tuple[Msg, str | None, dict | None]:
+        if body == "back":
+            sub = await subscription_service.get_user_subscription(db, user.id)
+            is_premium = sub.plan == "premium" if sub else False
+            is_standard = sub.plan == "standard" if sub else False
+            return (
+                main_menu(is_premium=is_premium, is_standard=is_standard),
+                None,
+                None,
+            )
         name = body.strip()
         if not _is_valid_custom_text(name):
             body_text = (
@@ -772,6 +781,15 @@ class FlowService:
     async def _s_exercise_type(
         self, db: AsyncSession, user: User, data: dict, body: str
     ) -> tuple[Msg, str | None, dict | None]:
+        if body == "back":
+            sub = await subscription_service.get_user_subscription(db, user.id)
+            is_premium = sub.plan == "premium" if sub else False
+            is_standard = sub.plan == "standard" if sub else False
+            return (
+                main_menu(is_premium=is_premium, is_standard=is_standard),
+                None,
+                None,
+            )
         if body == "ex_custom":
             body_text = (
                 "What is the name of your exercise?\n\n"
@@ -991,6 +1009,15 @@ class FlowService:
     async def _s_water_amount(
         self, db: AsyncSession, user: User, data: dict, body: str
     ) -> tuple[Msg, str | None, dict | None]:
+        if body == "back":
+            sub = await subscription_service.get_user_subscription(db, user.id)
+            is_premium = sub.plan == "premium" if sub else False
+            is_standard = sub.plan == "standard" if sub else False
+            return (
+                main_menu(is_premium=is_premium, is_standard=is_standard),
+                None,
+                None,
+            )
         if body == "water_custom":
             body_text = (
                 "What is your custom water amount?\n\n"
