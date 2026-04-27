@@ -23,6 +23,17 @@ from app.services.subscription_service import subscription_service
 logger = logging.getLogger(__name__)
 
 
+# ── Reusable prompt constants ──
+
+_MED_NAME_PROMPT = (
+    "What is the *name* of your medication?\n\n"
+    "👇 *Type the name below (e.g. Paracetamol)*"
+)
+
+_CUSTOM_DURATION_PROMPT = (
+    "How long is your session?\n\n" "👇 *Type it below (e.g. 20 mins, 2 hours)*"
+)
+
 # ── Pre-built menus ──
 
 
@@ -323,10 +334,7 @@ class FlowService:
             next_state: New state (None = clear/idle)
             state_data: Data to persist for the next step
         """
-        if (
-            body in ("go_menu", "menu", "0", "back", "cancel")
-            and state != "terms_accept"
-        ):
+        if body in ("go_menu", "menu", "0", "cancel") and state != "terms_accept":
             sub = await subscription_service.get_user_subscription(db, user.id)
             is_premium = sub.plan == "premium" if sub else False
             is_standard = sub.plan == "standard" if sub else False
@@ -425,10 +433,7 @@ class FlowService:
             if not can_add:
                 return _limit_reached_msg(), "idle", None
 
-            body_text = (
-                "What is the *name* of your medication?\n\n"
-                "👇 *Type the name below (e.g. Paracetamol)*"
-            )
+            body_text = _MED_NAME_PROMPT
             return (
                 ButtonMsg(
                     body=body_text,
@@ -522,10 +527,7 @@ class FlowService:
         self, db: AsyncSession, user: User, data: dict, body: str
     ) -> tuple[Msg, str | None, dict | None]:
         if body == "back":
-            body_text = (
-                "What is the *name* of your medication?\n\n"
-                "👇 *Type the name below (e.g. Paracetamol)*"
-            )
+            body_text = _MED_NAME_PROMPT
             return (
                 ButtonMsg(
                     body=body_text,
@@ -830,10 +832,7 @@ class FlowService:
         if body == "back":
             return EXERCISE_TYPE_MENU, "exercise_type", {}
         if body == "dur_custom":
-            prompt = (
-                "How long is your session?\n\n"
-                "👇 *Type it below (e.g. 20 mins, 2 hours)*"
-            )
+            prompt = _CUSTOM_DURATION_PROMPT
             return (
                 ButtonMsg(
                     body=prompt,
@@ -918,25 +917,21 @@ class FlowService:
         self, db: AsyncSession, user: User, data: dict, body: str
     ) -> tuple[Msg, str | None, dict | None]:
         if body == "back":
-            if data.get("_prev_state") == "exercise_duration":
-                return EXERCISE_DURATION_MENU, "exercise_duration", data
-            prompt = (
-                "How long is your session?\n\n"
-                "👇 *Type it below (e.g. 20 mins, 2 hours)*"
-            )
-            return (
-                ButtonMsg(
-                    body=prompt,
-                    buttons=[
-                        Button(id="back", text="⬅️ Back"),
-                        Button(id="go_menu", text="🏠 Main Menu"),
-                    ],
-                    content_sid=settings.CT_BACK_MENU,
-                    content_variables={"1": prompt},
-                ),
-                "exercise_duration_custom",
-                data,
-            )
+            if data.get("_prev_state") == "exercise_duration_custom":
+                return (
+                    ButtonMsg(
+                        body=_CUSTOM_DURATION_PROMPT,
+                        buttons=[
+                            Button(id="back", text="⬅️ Back"),
+                            Button(id="go_menu", text="🏠 Main Menu"),
+                        ],
+                        content_sid=settings.CT_BACK_MENU,
+                        content_variables={"1": _CUSTOM_DURATION_PROMPT},
+                    ),
+                    "exercise_duration_custom",
+                    data,
+                )
+            return EXERCISE_DURATION_MENU, "exercise_duration", data
         parsed = _parse_time(body)
         if not parsed:
             body_text = (
